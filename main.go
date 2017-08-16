@@ -240,15 +240,28 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 }
 
 func durationAsString(dur time.Duration) string {
+	var count int
+	var unit string
+
 	if dur.Minutes() < 1 {
 		return "just now"
 	} else if dur.Hours() < 1 {
-		return fmt.Sprintf("%.f minutes ago", dur.Minutes())
+		count = int(dur.Minutes())
+		unit = "minute"
 	} else if dur.Hours() < 24 {
-		return fmt.Sprintf("%.f hours ago", dur.Hours())
+		count = int(dur.Hours())
+		unit = "hour"
+	} else {
+		count = int(dur.Hours() / 24)
+		unit = "day"
 	}
 
-	return fmt.Sprintf("%.f days ago", dur.Hours()/24)
+	if count != 1 {
+		// add plural 's'
+		unit += "s"
+	}
+
+	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
 func getLogFiles() ([]string, error) {
