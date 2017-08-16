@@ -60,18 +60,20 @@ func main() {
 	sort.Strings(usernames)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tALG\tUSAGE\tFINGERPRINT\n")
+	fmt.Fprintf(w, "USER\tNAME\tALG\tUSAGE\tCOUNT\tFINGERPRINT\n")
 
 	for _, user := range usernames {
 		for _, key := range allkeys[user] {
 			found := false
 			//ip := ""
 			var lastTs time.Time
+			count := 0
 			for _, log := range logs[key.fingerprint] {
 				if log.user != user {
 					continue
 				}
 				found = true
+				count++
 				if lastTs.IsZero() || log.ts.After(lastTs) {
 					//ip = log.ip
 					lastTs = log.ts
@@ -84,7 +86,13 @@ func main() {
 			} else {
 				usage = "never"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", user, key.name, key.algorithm, usage, key.fingerprint)
+			var countStr string
+			if count > 0 {
+				countStr = fmt.Sprintf("%5d", count)
+			} else {
+				countStr = "    -"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", user, key.name, key.algorithm, usage, countStr, key.fingerprint)
 		}
 	}
 
