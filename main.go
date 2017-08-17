@@ -66,7 +66,7 @@ func main() {
 		for _, key := range allkeys[user] {
 			found := false
 			//ip := ""
-			var lastTs time.Time
+			var lastUse time.Time
 			count := 0
 			for _, log := range logs[key.fingerprint] {
 				if log.user != user {
@@ -74,15 +74,15 @@ func main() {
 				}
 				found = true
 				count++
-				if lastTs.IsZero() || log.ts.After(lastTs) {
+				if lastUse.IsZero() || log.ts.After(lastUse) {
 					//ip = log.ip
-					lastTs = log.ts
+					lastUse = log.ts
 				}
 			}
 
 			var usage string
 			if found {
-				usage = durationAsString(now.Sub(lastTs))
+				usage = durationAsString(now.Sub(lastUse))
 			} else {
 				usage = "never"
 			}
