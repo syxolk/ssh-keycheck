@@ -99,6 +99,9 @@ func getAuthorizedKeys(homedir string) ([]publickey, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		splits := strings.SplitN(scanner.Text(), " ", 3)
+		if len(splits) != 3 {
+			continue
+		}
 		keys = append(keys, publickey{
 			algorithm:   splits[0],
 			key:         splits[1],
