@@ -1,0 +1,19 @@
+sudo: false
+language: go
+go:
+  - 1.8
+
+before_deploy:
+  - cd $GOPATH/bin
+  - tar -cvzf "ssh-keycheck_${TRAVIS_TAG}_amd64.tar.gz" ssh-keycheck
+
+deploy:
+  provider: releases
+  api_key:
+    secure: iX0qRCuKVTCLo9U0tTOWNNpkU2odOvaSd7+C/1kC2A5SeHlTru93Ky074IUE1RA5IaVXMh0SiTsm1f56eZPF/WKRuRPoOs03bE+VRgSARNq/cwxEZd6RmFxidjs0grlqRxklFACih7Ya0KCs4nrGLShjy7vhiqveFUKCwgNc/yVkLMCZ6nzG+gaDlq2Yy0ITjJ6vP6TRPGil3iALukj+J+nUp440Ip3ARIxvT+/UqwHpbHxHCNCXIt0/jZE8PvLrJEOwK5Pyq7vwVsNjP+ljxa7eV9HzqskMCb+x/eaNlKnbrp42nosbXqrbbrdnBBrl0sDLGRPDonsEnvpIfYdVagg5oVNlX/+FfWfzulZLJiw+lcEiLZ6rbvDYWzf2cSc2NucmrGwEsBUkVFW+r229aiFc4MBCBdTtZqngB+PAZolKg7iFDwQSAfb4ujgKQ0jklM1dZN4X+GVqCj5GQ4Cu8ITusGwKpLTaH0EEg5HXIGrHJwKYncju5j2gTyFa7fLZfV+arkw/ybh8s/L8rc++5B2289seaLQHILscUKFQgojlyRH4dGoLrzFZ/vOrSIcdWnam8W96nOo2dyGfi0MaAz/qP+59441WfCDvDo04Is9eKT2WJIv7NUyUXNvbSQQYvWltkB6o0iQTMA62Wk8A8cj7THzIbeZYskk8eAtzzkU=
+  file_glob: true
+  file: "$GOPATH/bin/ssh-keycheck_*.tar.gz"
+  skip_cleanup: true
+  on:
+    repo: syxolk/ssh-keycheck
+    tags: true
