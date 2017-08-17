@@ -41,14 +41,14 @@ type access struct {
 func main() {
 	allkeys, err := getAuthorizedKeysForAllUsers()
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	logs, err := parseAllLogFiles()
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	now := time.Now()
