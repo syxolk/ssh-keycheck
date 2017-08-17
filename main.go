@@ -191,6 +191,9 @@ func parseLogFile(path string, accesses map[string][]access) error {
 				access{ts: ts, user: m[2], ip: m[3]})
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
 
 	return nil
 }
