@@ -64,27 +64,13 @@ func main() {
 
 	for _, user := range usernames {
 		for _, key := range allkeys[user] {
-			found := false
-			//ip := ""
-			var lastUse time.Time
-			count := 0
-			for _, log := range logs[key.fingerprint] {
-				if log.user != user {
-					continue
-				}
-				found = true
-				count++
-				if lastUse.IsZero() || log.ts.After(lastUse) {
-					//ip = log.ip
-					lastUse = log.ts
-				}
-			}
+			found, lastUse, count := findLog(logs, key.fingerprint, user)
 
-			var usage string
+			var lastUseStr string
 			if found {
-				usage = durationAsString(now.Sub(lastUse))
+				lastUseStr = durationAsString(now.Sub(lastUse))
 			} else {
-				usage = "never"
+				lastUseStr = "never"
 			}
 			var countStr string
 			if count > 0 {
@@ -92,7 +78,8 @@ func main() {
 			} else {
 				countStr = "    -"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", user, key.name, key.algorithm, usage, countStr, key.fingerprint)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", user, key.name,
+				key.algorithm, lastUseStr, countStr, key.fingerprint)
 		}
 	}
 
@@ -299,4 +286,26 @@ func parseAllLogFiles() (map[string][]access, error) {
 	}
 
 	return logs, nil
+}
+
+// Find the last log entry for (fingerprint, user) in the given logs mapping
+// Returns a tuple of (found, lastUse, count)
+// lastUse.IsZero() == true iff found == false
+func findLog(logs map[string][]access, fingerprint string, user string) (bool, time.Time, int) {
+	found := false
+	var lastUse time.Time
+	count := 0
+
+	for _, log := range logs[fingerprint] {
+		if log.user != user {
+			continue
+		}
+		found = true
+		count++
+		if lastUse.IsZero() || log.ts.After(lastUse) {
+			lastUse = log.ts
+		}
+	}
+
+	return found, lastUse, count
 }
