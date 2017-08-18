@@ -1,5 +1,7 @@
 # ssh-keycheck
 
+[![Build Status](https://travis-ci.org/syxolk/ssh-keycheck.svg?branch=master)](https://travis-ci.org/syxolk/ssh-keycheck)
+
 `ssh-keycheck` is a tool that gives you a quick overview of all authorized
 ssh keys on your server and their last use and usage count. This may be
 helpful for manual key expiration.
