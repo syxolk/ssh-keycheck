@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -86,17 +87,13 @@ func main() {
 	w.Flush()
 }
 
-func getAuthorizedKeys(homedir string) ([]publickey, error) {
-	// open ~/.ssh/authorized_keys
-	file, err := os.Open(path.Join(homedir, ".ssh", "authorized_keys"))
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
+// Parse the given stream and return a list of keys, splitted into
+// algorithm, pubkey and name.
+// Invalid lines are ignored.
+func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 	// every public key is in its own line
 	var keys []publickey
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(*file)
 	for scanner.Scan() {
 		splits := strings.SplitN(scanner.Text(), " ", 3)
 		if len(splits) != 3 {
@@ -136,6 +133,8 @@ func computeFingerprint(pubkey string) string {
 	return colonhash.String()
 }
 
+// Parse a log file written by sshd and return all logs with accepted logins
+// using an ssh key
 func parseLogFile(path string, accesses map[string][]access) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -213,6 +212,8 @@ func getAllUsers() ([]unixuser, error) {
 	return users, nil
 }
 
+// Opens ~/.ssh/authorized_keys for all users and returns
+// every key parsed into algorithm, key and name in a map.
 func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 	keys := make(map[string][]publickey)
 
@@ -222,7 +223,15 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 	}
 
 	for _, user := range users {
-		userkeys, err := getAuthorizedKeys(user.home)
+		// open ~/.ssh/authorized_keys
+		file, err := os.Open(path.Join(user.home, ".ssh", "authorized_keys"))
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		var reader io.Reader = file
+		userkeys, err := parseAuthorizedKeys(&reader)
 		if err != nil {
 			continue
 		}
@@ -257,6 +266,7 @@ func durationAsString(dur time.Duration) string {
 	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
+// Returns a list of all files matching /var/log/auth.log*
 func getLogFiles() ([]string, error) {
 	const logDir = "/var/log"
 	files, err := ioutil.ReadDir(logDir)
