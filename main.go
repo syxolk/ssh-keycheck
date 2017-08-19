@@ -188,16 +188,10 @@ func parseLogFile(path string, accesses map[string][]access) error {
 }
 
 // Read /etc/passwd and return all users and their corresponding home directory
-func getAllUsers() ([]unixuser, error) {
-	file, err := os.Open("/etc/passwd")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
+func parseAllUsers(file *io.Reader) ([]unixuser, error) {
 	var users []unixuser
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(*file)
 	for scanner.Scan() {
 		fs := strings.Split(scanner.Text(), ":")
 		if len(fs) != 7 {
@@ -210,6 +204,17 @@ func getAllUsers() ([]unixuser, error) {
 	}
 
 	return users, nil
+}
+
+func getAllUsers() ([]unixuser, error) {
+	file, err := os.Open("/etc/passwd")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var reader io.Reader = file
+	return parseAllUsers(&reader)
 }
 
 // Opens ~/.ssh/authorized_keys for all users and returns

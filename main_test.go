@@ -60,3 +60,35 @@ func TestParseAuthorizedKeys(t *testing.T) {
 			keys[0].fingerprint)
 	}
 }
+
+func TestParseAllUsers(t *testing.T) {
+	passwd := "root:x:0:0:root:/root:/bin/bash\n" +
+		"hans:x:1000:1000:Hans,,,:/home/hans:/usr/bin/zsh"
+
+	var reader io.Reader = strings.NewReader(passwd)
+	users, err := parseAllUsers(&reader)
+
+	if err != nil {
+		t.Fatalf("Failed with error: %s", err)
+	}
+
+	if len(users) != 2 {
+		t.Fatalf("Expected %d but got %d users", 2, len(users))
+	}
+
+	if users[0].name != "root" {
+		t.Errorf("Expected name %s but %s", "root", users[0].name)
+	}
+
+	if users[0].home != "/root" {
+		t.Errorf("Expected home %s but got %s", "/root", users[0].home)
+	}
+
+	if users[1].name != "hans" {
+		t.Errorf("Expected name %s but got %s", "hans", users[1].name)
+	}
+
+	if users[1].home != "/home/hans" {
+		t.Errorf("Expected home %s but got %s", "/home/hans", users[1].home)
+	}
+}
