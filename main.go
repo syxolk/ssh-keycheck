@@ -39,14 +39,17 @@ type access struct {
 	ip   string
 }
 
-func main() {
-	allkeys, err := getAuthorizedKeysForAllUsers()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+type tableRow struct {
+	user        string
+	name        string
+	algorithm   string
+	lastUse     time.Time
+	count       int
+	fingerprint string
+}
 
-	logs, err := parseAllLogFiles()
+func main() {
+	table, err := buildKeyTable()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -54,37 +57,62 @@ func main() {
 
 	now := time.Now()
 
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "USER\tNAME\tALG\tUSAGE\tCOUNT\tFINGERPRINT\n")
+
+	for _, row := range table {
+		var lastUseStr, countStr string
+		if row.count > 0 {
+			lastUseStr = durationAsString(now.Sub(row.lastUse))
+			countStr = fmt.Sprintf("%5d", row.count)
+		} else {
+			lastUseStr = "never"
+			countStr = "    -"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", row.user, row.name,
+			row.algorithm, lastUseStr, countStr, row.fingerprint)
+
+	}
+
+	w.Flush()
+}
+
+func buildKeyTable() ([]tableRow, error) {
+	allkeys, err := getAuthorizedKeysForAllUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := parseAllLogFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// sort users by name
 	var usernames []string
 	for k := range allkeys {
 		usernames = append(usernames, k)
 	}
 	sort.Strings(usernames)
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tALG\tUSAGE\tCOUNT\tFINGERPRINT\n")
+	var table []tableRow
 
 	for _, user := range usernames {
 		for _, key := range allkeys[user] {
-			found, lastUse, count := findLog(logs, key.fingerprint, user)
+			lastUse, count := findLog(logs, key.fingerprint, user)
 
-			var lastUseStr string
-			if found {
-				lastUseStr = durationAsString(now.Sub(lastUse))
-			} else {
-				lastUseStr = "never"
-			}
-			var countStr string
-			if count > 0 {
-				countStr = fmt.Sprintf("%5d", count)
-			} else {
-				countStr = "    -"
-			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", user, key.name,
-				key.algorithm, lastUseStr, countStr, key.fingerprint)
+			table = append(table, tableRow{
+				user:        user,
+				name:        key.name,
+				algorithm:   key.algorithm,
+				lastUse:     lastUse,
+				count:       count,
+				fingerprint: key.fingerprint,
+			})
 		}
 	}
 
-	w.Flush()
+	return table, nil
 }
 
 // Parse the given stream and return a list of keys, splitted into
@@ -307,10 +335,9 @@ func parseAllLogFiles() (map[string][]access, error) {
 }
 
 // Find the last log entry for (fingerprint, user) in the given logs mapping
-// Returns a tuple of (found, lastUse, count)
-// lastUse.IsZero() == true iff found == false
-func findLog(logs map[string][]access, fingerprint string, user string) (bool, time.Time, int) {
-	found := false
+// Returns a tuple of (lastUse, count)
+// lastUse.IsZero() == true iff count == 0
+func findLog(logs map[string][]access, fingerprint string, user string) (time.Time, int) {
 	var lastUse time.Time
 	count := 0
 
@@ -318,12 +345,11 @@ func findLog(logs map[string][]access, fingerprint string, user string) (bool, t
 		if log.user != user {
 			continue
 		}
-		found = true
 		count++
 		if lastUse.IsZero() || log.ts.After(lastUse) {
 			lastUse = log.ts
 		}
 	}
 
-	return found, lastUse, count
+	return lastUse, count
 }
