@@ -6,7 +6,9 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -49,12 +51,23 @@ type tableRow struct {
 }
 
 func main() {
+	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	flag.Parse()
+
 	table, err := buildKeyTable()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
+	if *csv {
+		printCSV(table)
+	} else {
+		printAlignedTable(table)
+	}
+}
+
+func printAlignedTable(table []tableRow) {
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -71,7 +84,36 @@ func main() {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", row.user, row.name,
 			row.algorithm, lastUseStr, countStr, row.fingerprint)
+	}
 
+	w.Flush()
+}
+
+func printCSV(table []tableRow) {
+	w := csv.NewWriter(os.Stdout)
+	w.Write([]string{
+		"user",
+		"name",
+		"algorithm",
+		"lastuse",
+		"count",
+		"fingerprint",
+	})
+
+	for _, row := range table {
+		lastUseStr := ""
+		if row.count > 0 {
+			// if the key was never used, the timestamp should not be printed
+			lastUseStr = row.lastUse.Format(time.RFC3339)
+		}
+		w.Write([]string{
+			row.user,
+			row.name,
+			row.algorithm,
+			lastUseStr,
+			strconv.Itoa(row.count),
+			row.fingerprint,
+		})
 	}
 
 	w.Flush()
