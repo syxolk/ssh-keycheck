@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 const pubkey = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811s8p1GR4X" +
@@ -91,4 +92,22 @@ func TestParseAllUsers(t *testing.T) {
 	if users[1].home != "/home/hans" {
 		t.Errorf("Expected home %s but got %s", "/home/hans", users[1].home)
 	}
+}
+
+func assertDuration(t *testing.T, in time.Duration, out string) {
+	computedOut := durationAsString(in)
+	if computedOut != out {
+		t.Errorf("Expected %s but got %s", out, computedOut)
+	}
+}
+
+func TestDurationAsString(t *testing.T) {
+	assertDuration(t, 12*time.Second, "just now")
+	assertDuration(t, 1*time.Minute, "1 minute ago")
+	assertDuration(t, 2*time.Minute, "2 minutes ago")
+	assertDuration(t, 1*time.Hour, "1 hour ago")
+	assertDuration(t, 2*time.Hour, "2 hours ago")
+	assertDuration(t, 24*time.Hour, "1 day ago")
+	assertDuration(t, 48*time.Hour, "2 days ago")
+	assertDuration(t, 192*time.Hour, "8 days ago")
 }
