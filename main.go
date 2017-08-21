@@ -226,32 +226,40 @@ func parseKeyType(pubkey string) algorithm {
 		return algorithm{name: "error"}
 	}
 
-	if name == "ssh-rsa" && len(partLengths) == 3 {
+	switch name {
+	case "ssh-rsa":
+		if len(partLengths) != 3 {
+			// This should never happen
+			return algorithm{
+				name:   "RSA",
+				keylen: 0,
+			}
+		}
 		return algorithm{
 			name:   "RSA",
 			keylen: 8 * (partLengths[2] - 1),
 		}
-	} else if name == "ssh-ed25519" {
+	case "ssh-ed25519":
 		return algorithm{
 			name:   "ED25519",
 			keylen: 256,
 		}
-	} else if name == "ssh-dss" {
+	case "ssh-dss":
 		return algorithm{
 			name:   "DSA",
 			keylen: 1024,
 		}
-	} else if name == "ecdsa-sha2-nistp521" {
+	case "ecdsa-sha2-nistp521":
 		return algorithm{
 			name:   "ECDSA",
 			keylen: 521,
 		}
-	} else if name == "ecdsa-sha2-nistp384" {
+	case "ecdsa-sha2-nistp384":
 		return algorithm{
 			name:   "ECDSA",
 			keylen: 384,
 		}
-	} else if name == "ecdsa-sha2-nistp256" {
+	case "ecdsa-sha2-nistp256":
 		return algorithm{
 			name:   "ECDSA",
 			keylen: 256,
