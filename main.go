@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
 	"flag"
@@ -23,9 +24,13 @@ import (
 	"time"
 )
 
+type algorithm struct {
+	name   string
+	keylen int
+}
+
 type publickey struct {
-	algorithm   string
-	key         string
+	alg         algorithm
 	fingerprint string
 	name        string
 }
@@ -44,7 +49,7 @@ type access struct {
 type tableRow struct {
 	user        string
 	name        string
-	algorithm   string
+	alg         algorithm
 	lastUse     time.Time
 	count       int
 	fingerprint string
@@ -71,10 +76,10 @@ func printAlignedTable(table []tableRow) {
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tALG\tUSAGE\tCOUNT\tFINGERPRINT\n")
+	fmt.Fprintf(w, "USER\tNAME\tTYPE\tUSAGE\tCOUNT\tFINGERPRINT\n")
 
 	for _, row := range table {
-		var lastUseStr, countStr string
+		var algStr, lastUseStr, countStr string
 		if row.count > 0 {
 			lastUseStr = durationAsString(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
@@ -82,8 +87,15 @@ func printAlignedTable(table []tableRow) {
 			lastUseStr = "never"
 			countStr = "    -"
 		}
+		if row.alg.name == "RSA" || row.alg.name == "ECDSA" {
+			// RSA and ECDSA can be generated with different key lengths
+			algStr = fmt.Sprintf("%s-%d", row.alg.name, row.alg.keylen)
+		} else {
+			// DSA and ED25519 have fixed key lengths
+			algStr = row.alg.name
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", row.user, row.name,
-			row.algorithm, lastUseStr, countStr, row.fingerprint)
+			algStr, lastUseStr, countStr, row.fingerprint)
 	}
 
 	w.Flush()
@@ -94,7 +106,8 @@ func printCSV(table []tableRow) {
 	w.Write([]string{
 		"user",
 		"name",
-		"algorithm",
+		"type",
+		"keylen",
 		"lastuse",
 		"count",
 		"fingerprint",
@@ -109,7 +122,8 @@ func printCSV(table []tableRow) {
 		w.Write([]string{
 			row.user,
 			row.name,
-			row.algorithm,
+			row.alg.name,
+			strconv.Itoa(row.alg.keylen),
 			lastUseStr,
 			strconv.Itoa(row.count),
 			row.fingerprint,
@@ -146,7 +160,7 @@ func buildKeyTable() ([]tableRow, error) {
 			table = append(table, tableRow{
 				user:        user,
 				name:        key.name,
-				algorithm:   key.algorithm,
+				alg:         key.alg,
 				lastUse:     lastUse,
 				count:       count,
 				fingerprint: key.fingerprint,
@@ -170,8 +184,7 @@ func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 			continue
 		}
 		keys = append(keys, publickey{
-			algorithm:   splits[0],
-			key:         splits[1],
+			alg:         parseKeyType(splits[1]),
 			fingerprint: computeFingerprint(splits[1]),
 			name:        splits[2],
 		})
@@ -201,6 +214,82 @@ func computeFingerprint(pubkey string) string {
 		}
 	}
 	return colonhash.String()
+}
+
+func parseKeyType(pubkey string) algorithm {
+	name, partLengths, err := splitPubkey(pubkey)
+	if err != nil {
+		return algorithm{name: "error"}
+	}
+
+	if len(partLengths) == 0 {
+		return algorithm{name: "error"}
+	}
+
+	if name == "ssh-rsa" && len(partLengths) == 3 {
+		return algorithm{
+			name:   "RSA",
+			keylen: 8 * (partLengths[2] - 1),
+		}
+	} else if name == "ssh-ed25519" {
+		return algorithm{
+			name:   "ED25519",
+			keylen: 256,
+		}
+	} else if name == "ssh-dss" {
+		return algorithm{
+			name:   "DSA",
+			keylen: 1024,
+		}
+	} else if name == "ecdsa-sha2-nistp521" {
+		return algorithm{
+			name:   "ECDSA",
+			keylen: 521,
+		}
+	} else if name == "ecdsa-sha2-nistp384" {
+		return algorithm{
+			name:   "ECDSA",
+			keylen: 384,
+		}
+	} else if name == "ecdsa-sha2-nistp256" {
+		return algorithm{
+			name:   "ECDSA",
+			keylen: 256,
+		}
+	}
+
+	return algorithm{name: "unknown"}
+}
+
+func splitPubkey(pubkey string) (string, []int, error) {
+	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
+	if err != nil {
+		return "", nil, err
+	}
+
+	buf := bytes.NewReader(pubkeyBytes)
+	firstPart := ""
+	var partLengths []int
+	for {
+		var length int32
+		err := binary.Read(buf, binary.BigEndian, &length)
+		if err != nil {
+			break
+		}
+
+		data := make([]byte, length)
+		n, _ := buf.Read(data)
+		if int32(n) != length {
+			break
+		}
+
+		if len(partLengths) == 0 {
+			firstPart = string(data)
+		}
+		partLengths = append(partLengths, int(length))
+	}
+
+	return firstPart, partLengths, nil
 }
 
 // Parse a log file written by sshd and return all logs with accepted logins

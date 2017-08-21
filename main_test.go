@@ -47,13 +47,13 @@ func TestParseAuthorizedKeys(t *testing.T) {
 			keys[0].name)
 	}
 
-	if keys[0].algorithm != "ssh-rsa" {
-		t.Errorf("Expected algorithm %s but got %s", "ssh-rsa",
-			keys[0].algorithm)
+	if keys[0].alg.name != "RSA" {
+		t.Errorf("Expected algorithm %s but got %s", "RSA",
+			keys[0].alg.name)
 	}
 
-	if keys[0].key != pubkey {
-		t.Errorf("Wrong pubkey")
+	if keys[0].alg.keylen != 4096 {
+		t.Errorf("Expected keylen %d but got %d", 4096, keys[0].alg.keylen)
 	}
 
 	if keys[0].fingerprint != fingerprint {
