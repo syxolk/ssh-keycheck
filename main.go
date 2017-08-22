@@ -228,16 +228,14 @@ func parseKeyType(pubkey string) algorithm {
 
 	switch name {
 	case "ssh-rsa":
-		if len(partLengths) != 3 {
-			// This should never happen
-			return algorithm{
-				name:   "RSA",
-				keylen: 0,
-			}
+		keylen := 0
+		if len(partLengths) == 3 {
+			// This should always be computed
+			keylen = 8 * (partLengths[2] - 1)
 		}
 		return algorithm{
 			name:   "RSA",
-			keylen: 8 * (partLengths[2] - 1),
+			keylen: keylen,
 		}
 	case "ssh-ed25519":
 		return algorithm{
