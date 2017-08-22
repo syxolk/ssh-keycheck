@@ -20,6 +20,32 @@ const pubkey = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811s8p1GR4X" 
 	"aRdw0cIrz7o/Vow6PyTHgEc74L2vE1ZtR2F8O1Vw=="
 const fingerprint = "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3"
 
+const pubkeyDsa = "AAAAB3NzaC1kc3MAAACBALyk040uIm96YRrfhStAGvA+oB9pCyJxUyDLFA" +
+	"xZvonOKJaTmFv6j+ZVgUYg1p+MSGGoO0CLzg5x7LJriLpvZVMBiiaPB/65Xd58a1AGGozIjL" +
+	"hI3k7caviQDEvsOilf+63t4dfL8zV76O59jxqFTQrgyucDGxmgyNog1U+zWDTXAAAAFQCzqn" +
+	"pvRpCDUxvrFG5Rs4adBXMVBQAAAIEAm6w3yAWcCWJxt4cPAidwFyf5/nOduzI2DmuFGLupEK" +
+	"VY4LlI8luNyTcBxxE3rdyeF0wuI7Ssoma8sib4u1NLA1QDMzXTpqP2sKZiAWkgh0h4neHwQz" +
+	"XZD6vDJmKuJ95BavLQrQaxlSjjgbvlJoVPWhRBbWW//5qG/w4UqrsnwMcAAACBALGGFn3chw" +
+	"/iQOIQAzKDyBm3iYvTB6ZoxxRRIx5H6hpXKSnki1QG2m7B25WTxgJy+DdEoBhIe74G0Q4eB3" +
+	"ExJLS1G+mBd11IRJNpl8F7Ai46Sqdg3rqlghR6abPGMtS8VqDY/aQyO63yyUQjYvL+KiFKTM" +
+	"Qgf9WpltBpP2rg0BDO"
+
+const pubkeyEcdsa256 = "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBB" +
+	"MgN/2nqDTX0qap9CbHHmteo7Dwe3Mu6HrHdCcm89bMtCKHpt8SBfSmFkC+TYS4ogmrdXWax5" +
+	"US01YAlcrVyahI="
+
+const pubkeyEcdsa384 = "AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhB" +
+	"Psih9oUCd46Fx4QdlnB7qsv5rpGzYLJQkax6Dm3zJK4etK6XCzbujiGZmrKmYVw/SRAEnXsJ" +
+	"KsEflg1spEGNCfrBB/OtB93RDz6mzSMmouJfXeidYjI1VMtZVVJY59DbQ=="
+
+const pubkeyEcdsa521 = "AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFB" +
+	"AEflOtqKirwjX6jISdWOTLlgq7ELAcC+wQMNoO0d+XmaIlgKtRo4rrTHZYrZUdTnYLZXWcZs" +
+	"Vay8SogT1MEE5sqowG/NFMo+ntjTbloUzIXXyyfU/owI939bOmSCrttWd6lDQ24y1ZXFi+Sg" +
+	"Ymks8rhruGNTv0quXWgC5bVcNQLH0Egig=="
+
+const pubkeyEd25519 = "AAAAC3NzaC1lZDI1NTE5AAAAIDTOl+HDVEDrNXcm2Azxjw3/VZNith" +
+	"2iUEm7wWpHZLzE"
+
 func TestComputeFingerprint(t *testing.T) {
 	computedFingerprint := computeFingerprint(pubkey)
 	if computedFingerprint != fingerprint {
@@ -110,4 +136,30 @@ func TestDurationAsString(t *testing.T) {
 	assertDuration(t, 24*time.Hour, "1 day ago")
 	assertDuration(t, 48*time.Hour, "2 days ago")
 	assertDuration(t, 192*time.Hour, "8 days ago")
+}
+
+func TestParseKeyType(t *testing.T) {
+	keys := []struct {
+		pubkey string
+		name   string
+		keylen int
+	}{
+		{pubkey, "RSA", 4096},
+		{pubkeyDsa, "DSA", 1024},
+		{pubkeyEcdsa256, "ECDSA", 256},
+		{pubkeyEcdsa384, "ECDSA", 384},
+		{pubkeyEcdsa521, "ECDSA", 521},
+		{pubkeyEd25519, "ED25519", 256},
+	}
+
+	for _, k := range keys {
+		c := parseKeyType(k.pubkey)
+		if c.name != k.name {
+			t.Errorf("Expected %s but got %s", k.name, c.name)
+		}
+		if c.keylen != k.keylen {
+			t.Errorf("Expected %s keylen %d but got %d", k.name, k.keylen, c.keylen)
+		}
+	}
+
 }
