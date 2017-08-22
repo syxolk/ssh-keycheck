@@ -120,22 +120,27 @@ func TestParseAllUsers(t *testing.T) {
 	}
 }
 
-func assertDuration(t *testing.T, in time.Duration, out string) {
-	computedOut := durationAsString(in)
-	if computedOut != out {
-		t.Errorf("Expected %s but got %s", out, computedOut)
-	}
-}
-
 func TestDurationAsString(t *testing.T) {
-	assertDuration(t, 12*time.Second, "just now")
-	assertDuration(t, 1*time.Minute, "1 minute ago")
-	assertDuration(t, 2*time.Minute, "2 minutes ago")
-	assertDuration(t, 1*time.Hour, "1 hour ago")
-	assertDuration(t, 2*time.Hour, "2 hours ago")
-	assertDuration(t, 24*time.Hour, "1 day ago")
-	assertDuration(t, 48*time.Hour, "2 days ago")
-	assertDuration(t, 192*time.Hour, "8 days ago")
+	parameters := []struct {
+		in  time.Duration
+		out string
+	}{
+		{12 * time.Second, "just now"},
+		{1 * time.Minute, "1 minute ago"},
+		{2 * time.Minute, "2 minutes ago"},
+		{1 * time.Hour, "1 hour ago"},
+		{2 * time.Hour, "2 hours ago"},
+		{24 * time.Hour, "1 day ago"},
+		{48 * time.Hour, "2 days ago"},
+		{192 * time.Hour, "8 days ago"},
+	}
+
+	for _, p := range parameters {
+		g := durationAsString(p.in)
+		if g != p.out {
+			t.Errorf("Expected %s but got %s", p.out, g)
+		}
+	}
 }
 
 func TestParseKeyType(t *testing.T) {
