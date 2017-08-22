@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-const pubkeyRsa4096 = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811s8p1GR4X" +
-	"GRV+ysnIOUl/bzSMcgXKpxPAASEhtBF9MfGaPongDNvQUHS5L83EUXJyF742BjDpeVMh" +
-	"x2cz5nGJcdOtFMyZGmCnNQMPv33j8bUvLm37Klj6KR1uHBfsxz127nlSWBVAGcI1ZaxB" +
+const pubkeyRsa4096 = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811" +
+	"s8p1GR4XGRV+ysnIOUl/bzSMcgXKpxPAASEhtBF9MfGaPongDNvQUHS5L83EUXJyF742BjDp" +
+	"eVMhx2cz5nGJcdOtFMyZGmCnNQMPv33j8bUvLm37Klj6KR1uHBfsxz127nlSWBVAGcI1ZaxB" +
 	"FkZZCPuWVVTk35hb8lKKVLtPn674qAYM04xzbvUbvPMkKGyLJyRIF/nICuwUgGir9sEp" +
 	"mTUXasLqtiX8k+1F+pYS9MTjD29cvKavXPCfSeY/0UxVhJDPPtuRJrdwDy0F0+ugL+tG" +
 	"P7pyXUE9jdu6ek9GS9jiNonVyQzucYlOC8OqVLoled5NDXrcX9emeiqBFmV+wJKUFW5D" +
@@ -19,6 +19,20 @@ const pubkeyRsa4096 = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811s8p
 	"BK29GkF/mJGYEqRV1dvMTEO7PjIGegX237qegIdrKoIMKD1x0t2m7/r/+IFpu3Ztjl3y" +
 	"aRdw0cIrz7o/Vow6PyTHgEc74L2vE1ZtR2F8O1Vw=="
 const fingerprintRsa4096 = "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3"
+
+const pubkeyRsa2048 = "AAAAB3NzaC1yc2EAAAADAQABAAABAQDI7qrtsJtU0M3LLl4XTSmo56" +
+	"A78aGLFT6WtQz5TYOjy7HM2C03wvWAsMYtXq4GYvjMyIygOiFe+LwjXZjLlFZIyqEDZdgP4P" +
+	"DA/D9rjJ4G8WvV0ILOdeLB8cUKQ9FIxJ18onfP6bKoUDJvuHHazhvCHLclZQMn2n+WCPRLOf" +
+	"kg9AYLhk1ytZEmC+3Eu5JIbEg34dd1o9BYQdY7ynK11/m/2JrSBeXWuR9/3kRK2OJB468gxm" +
+	"oSXmyCIrrh3EObOlhZevjXrSJ5noggif1YkfEiTkA0PaNJRxIb5MS1otZ4xCPV3rMq+LBCbC" +
+	"rMJykaxZxBmrcYyHRegXwDEbu/dfyx"
+const fingerprintRsa2048 = "3f:96:4d:01:7e:43:a8:09:40:29:4b:e4:28:6a:e1:21"
+
+const pubkeyRsa1024 = "AAAAB3NzaC1yc2EAAAADAQABAAAAgQCwxotwPF22gFU0jpFBCY+n2n" +
+	"Cx00bd5nMIKYc+w7SjrWghY9z/pgWUQPZJ74lplnehyLyBx2RroGgHkUhAzQ0ud41if+8+Xi" +
+	"T/cKoxQ1sBRAeFDCchwaHxf8HDZOw6bARJzkmhUpMvw7ZaEaCLseNHkc0FAbPHuYrN6xCCiz" +
+	"J9tQ=="
+const fingerprintRsa1024 = "e6:96:4f:57:3a:65:d9:f5:23:bb:56:5a:03:27:86:8d"
 
 const pubkeyDsa = "AAAAB3NzaC1kc3MAAACBALyk040uIm96YRrfhStAGvA+oB9pCyJxUyDLFA" +
 	"xZvonOKJaTmFv6j+ZVgUYg1p+MSGGoO0CLzg5x7LJriLpvZVMBiiaPB/65Xd58a1AGGozIjL" +
@@ -56,6 +70,8 @@ func TestComputeFingerprint(t *testing.T) {
 		pubkey      string
 		fingerprint string
 	}{
+		{pubkeyRsa1024, fingerprintRsa1024},
+		{pubkeyRsa2048, fingerprintRsa2048},
 		{pubkeyRsa4096, fingerprintRsa4096},
 		{pubkeyDsa, fingerprintDsa},
 		{pubkeyEcdsa256, fingerprintEcdsa256},
@@ -168,6 +184,8 @@ func TestParseKeyType(t *testing.T) {
 		name   string
 		keylen int
 	}{
+		{pubkeyRsa1024, "RSA", 1024},
+		{pubkeyRsa2048, "RSA", 2048},
 		{pubkeyRsa4096, "RSA", 4096},
 		{pubkeyDsa, "DSA", 1024},
 		{pubkeyEcdsa256, "ECDSA", 256},
