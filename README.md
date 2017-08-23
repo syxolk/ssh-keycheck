@@ -22,6 +22,13 @@ root  rsa-key-20170101  RSA-4096  never              -  00:11:22:33:44:55:66:77:
 root  rsa-key-20170102  ED25519   9 minutes ago      3  ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
 ```
 
+```
+~$ sudo ssh-keycheck -csv
+user,name,type,keylen,lastuse,count,fingerprint
+root,rsa-key-20170101,RSA,4096,,0,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+```
+
 ## How does it work?
 - Read all users from `/etc/passwd`
 - Read `~/.ssh/authorized_keys` file from each user's home directory
@@ -41,5 +48,5 @@ The log files under `/var/log` require root rights.
 Requires a recent Go version (only tested with Go 1.8)
 
 ```
-go build
+go get github.com/syxolk/ssh-keycheck
 ```
