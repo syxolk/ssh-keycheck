@@ -55,6 +55,9 @@ type tableRow struct {
 	fingerprint string
 }
 
+var logPattern = regexp.MustCompile("([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
+	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)")
+
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
 	flag.Parse()
@@ -327,12 +330,10 @@ func parseLogFile(path string, accesses map[string][]access) error {
 		scanner = bufio.NewScanner(file)
 	}
 
-	pattern := regexp.MustCompile("([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: RSA ([0-9a-f:]+)")
-
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "Accepted publickey for") {
-			m := pattern.FindStringSubmatch(line)
+			m := logPattern.FindStringSubmatch(line)
 			if len(m) != 5 {
 				continue
 			}
