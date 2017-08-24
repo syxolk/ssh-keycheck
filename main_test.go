@@ -236,7 +236,7 @@ func TestParseLogLine(t *testing.T) {
 	}
 
 	expectedTime := time.Date(2017, 8, 20, 12, 59, 13, 0, utc)
-	if line.ts != expectedTime {
+	if !line.ts.Equal(expectedTime) {
 		t.Errorf("Expected %s but got %s", expectedTime, line.ts)
 	}
 }
