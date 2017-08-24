@@ -40,10 +40,17 @@ type unixuser struct {
 	home string
 }
 
+type accessSummary struct {
+	lastUse time.Time
+	lastIP  string
+	count   int
+}
+
 type access struct {
-	ts   time.Time
-	user string
-	ip   string
+	user        string
+	fingerprint string
+	ts          time.Time
+	ip          string
 }
 
 type tableRow struct {
@@ -55,8 +62,8 @@ type tableRow struct {
 	fingerprint string
 }
 
-var logPattern = regexp.MustCompile("([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
-	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)")
+var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
+	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
@@ -158,14 +165,14 @@ func buildKeyTable() ([]tableRow, error) {
 
 	for _, user := range usernames {
 		for _, key := range allkeys[user] {
-			lastUse, count := findLog(logs, key.fingerprint, user)
+			summary := logs[user][key.fingerprint]
 
 			table = append(table, tableRow{
 				user:        user,
 				name:        key.name,
 				alg:         key.alg,
-				lastUse:     lastUse,
-				count:       count,
+				lastUse:     summary.lastUse,
+				count:       summary.count,
 				fingerprint: key.fingerprint,
 			})
 		}
@@ -303,7 +310,7 @@ func splitPubkey(pubkey string) (string, []int, error) {
 
 // Parse a log file written by sshd and return all logs with accepted logins
 // using an ssh key
-func parseLogFile(path string, accesses map[string][]access) error {
+func parseLogFile(path string, accesses map[string]map[string]accessSummary) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -332,25 +339,50 @@ func parseLogFile(path string, accesses map[string][]access) error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "Accepted publickey for") {
-			m := logPattern.FindStringSubmatch(line)
-			if len(m) != 5 {
-				continue
-			}
-			fingerprint := m[4]
-			ts, err := time.ParseInLocation("2006 Jan 2 15:04:05", strconv.Itoa(logFileYear)+" "+m[1], logFileTimezone)
-			if err != nil {
-				continue
-			}
-			accesses[fingerprint] = append(accesses[fingerprint],
-				access{ts: ts, user: m[2], ip: m[3]})
+		log, ok := parseLogLine(logFileYear, logFileTimezone, line)
+		if !ok {
+			continue
 		}
+
+		// create map of fingerprints if not yet there
+		if accesses[log.user] == nil {
+			accesses[log.user] = make(map[string]accessSummary)
+		}
+
+		access := accesses[log.user][log.fingerprint]
+		if access.lastUse.IsZero() || log.ts.After(access.lastUse) {
+			access.lastUse = log.ts
+			access.lastIP = log.ip
+		}
+		access.count++
+		accesses[log.user][log.fingerprint] = access
 	}
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func parseLogLine(year int, location *time.Location, line string) (access, bool) {
+	if !strings.Contains(line, "Accepted publickey for") {
+		return access{}, false
+	}
+	m := logPattern.FindStringSubmatch(line)
+	if len(m) != 5 {
+		return access{}, false
+	}
+	ts, err := time.ParseInLocation("2006 Jan 2 15:04:05", strconv.Itoa(year)+" "+m[1], location)
+	if err != nil {
+		return access{}, false
+	}
+
+	return access{
+		user:        m[2],
+		ip:          m[3],
+		fingerprint: m[4],
+		ts:          ts,
+	}, true
 }
 
 // Read /etc/passwd and return all users and their corresponding home directory
@@ -455,13 +487,13 @@ func getLogFiles() ([]string, error) {
 	return logFiles, nil
 }
 
-func parseAllLogFiles() (map[string][]access, error) {
+func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
 	allfiles, err := getLogFiles()
 	if err != nil {
 		return nil, err
 	}
 
-	logs := make(map[string][]access)
+	logs := make(map[string]map[string]accessSummary)
 	for _, file := range allfiles {
 		err := parseLogFile(file, logs)
 		if err != nil {
@@ -470,24 +502,4 @@ func parseAllLogFiles() (map[string][]access, error) {
 	}
 
 	return logs, nil
-}
-
-// Find the last log entry for (fingerprint, user) in the given logs mapping
-// Returns a tuple of (lastUse, count)
-// lastUse.IsZero() == true iff count == 0
-func findLog(logs map[string][]access, fingerprint string, user string) (time.Time, int) {
-	var lastUse time.Time
-	count := 0
-
-	for _, log := range logs[fingerprint] {
-		if log.user != user {
-			continue
-		}
-		count++
-		if lastUse.IsZero() || log.ts.After(lastUse) {
-			lastUse = log.ts
-		}
-	}
-
-	return lastUse, count
 }

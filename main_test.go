@@ -205,3 +205,38 @@ func TestParseKeyType(t *testing.T) {
 	}
 
 }
+
+func TestParseLogLine(t *testing.T) {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	rsaLine := "Aug 20 12:59:13 vserver sshd[12345]: " +
+		"Accepted publickey for root from 127.0.0.1 port 44152 ssh2: " +
+		"RSA 3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3"
+
+	line, ok := parseLogLine(2017, utc, rsaLine)
+	if !ok {
+		t.Fatal("Failed to parse log line")
+	}
+
+	if line.fingerprint != "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3" {
+		t.Errorf("Expected %s but go %s",
+			"3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3",
+			line.fingerprint)
+	}
+
+	if line.ip != "127.0.0.1" {
+		t.Errorf("Expected %s but got %s", "127.0.0.1", line.ip)
+	}
+
+	if line.user != "root" {
+		t.Errorf("Expected %s but got %s", "root", line.user)
+	}
+
+	expectedTime := time.Date(2017, 8, 20, 12, 59, 13, 0, utc)
+	if line.ts != expectedTime {
+		t.Errorf("Expected %s but got %s", expectedTime, line.ts)
+	}
+}
