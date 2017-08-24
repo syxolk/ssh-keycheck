@@ -60,6 +60,7 @@ type tableRow struct {
 	lastUse     time.Time
 	count       int
 	fingerprint string
+	lastIP      string
 }
 
 var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
@@ -67,6 +68,7 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	enableFingerprint := flag.Bool("fingerprint", false, "Show fingerprint column")
 	flag.Parse()
 
 	table, err := buildKeyTable()
@@ -78,15 +80,19 @@ func main() {
 	if *csv {
 		printCSV(table)
 	} else {
-		printAlignedTable(table)
+		printAlignedTable(table, *enableFingerprint)
 	}
 }
 
-func printAlignedTable(table []tableRow) {
+func printAlignedTable(table []tableRow, enableFingerprint bool) {
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tTYPE\tUSAGE\tCOUNT\tFINGERPRINT\n")
+	fmt.Fprintf(w, "USER\tNAME\tTYPE\tLAST USE\tCOUNT\tLAST IP")
+	if enableFingerprint {
+		fmt.Fprintf(w, "\tFINGERPRINT")
+	}
+	fmt.Fprintln(w)
 
 	for _, row := range table {
 		var algStr, lastUseStr, countStr string
@@ -104,8 +110,12 @@ func printAlignedTable(table []tableRow) {
 			// DSA and ED25519 have fixed key lengths
 			algStr = row.alg.name
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", row.user, row.name,
-			algStr, lastUseStr, countStr, row.fingerprint)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
+			algStr, lastUseStr, countStr, row.lastIP)
+		if enableFingerprint {
+			fmt.Fprintf(w, "\t%s", row.fingerprint)
+		}
+		fmt.Fprintln(w)
 	}
 
 	w.Flush()
@@ -120,6 +130,7 @@ func printCSV(table []tableRow) {
 		"keylen",
 		"lastuse",
 		"count",
+		"lastip",
 		"fingerprint",
 	})
 
@@ -136,6 +147,7 @@ func printCSV(table []tableRow) {
 			strconv.Itoa(row.alg.keylen),
 			lastUseStr,
 			strconv.Itoa(row.count),
+			row.lastIP,
 			row.fingerprint,
 		})
 	}
@@ -174,6 +186,7 @@ func buildKeyTable() ([]tableRow, error) {
 				lastUse:     summary.lastUse,
 				count:       summary.count,
 				fingerprint: key.fingerprint,
+				lastIP:      summary.lastIP,
 			})
 		}
 	}
