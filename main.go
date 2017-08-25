@@ -470,27 +470,50 @@ func getAllUsers() ([]unixuser, error) {
 // Opens ~/.ssh/authorized_keys for all users and returns
 // every key parsed into algorithm, key and name in a map.
 func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
-	keys := make(map[string][]publickey)
-
 	users, err := getAllUsers()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, user := range users {
-		// open ~/.ssh/authorized_keys
-		file, err := os.Open(path.Join(user.home, ".ssh", "authorized_keys"))
-		if err != nil {
-			continue
-		}
-		defer file.Close()
+	type result struct {
+		user string
+		keys []publickey
+		ok   bool
+	}
 
-		var reader io.Reader = file
-		userkeys, err := parseAuthorizedKeys(&reader)
-		if err != nil {
-			continue
+	c := make(chan result)
+
+	for _, user := range users {
+		go func(user unixuser) {
+			// open ~/.ssh/authorized_keys
+			file, err := os.Open(path.Join(user.home, ".ssh", "authorized_keys"))
+			if err != nil {
+				c <- result{ok: false}
+				return
+			}
+			defer file.Close()
+
+			var reader io.Reader = file
+			userkeys, err := parseAuthorizedKeys(&reader)
+			if err != nil {
+				c <- result{ok: false}
+				return
+			}
+			c <- result{
+				user: user.name,
+				keys: userkeys,
+				ok:   true,
+			}
+		}(user)
+	}
+
+	keys := make(map[string][]publickey)
+
+	for _ = range users {
+		res := <-c
+		if res.ok {
+			keys[res.user] = res.keys
 		}
-		keys[user.name] = userkeys
 	}
 
 	return keys, nil
