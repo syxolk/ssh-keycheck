@@ -565,6 +565,7 @@ func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
 			logs, err := parseLogFile(file)
 			if err != nil {
 				c <- result{err: err}
+				return
 			}
 			c <- result{logs: logs}
 		}(file)
