@@ -95,13 +95,15 @@ func printAlignedTable(table []tableRow, enableFingerprint bool) {
 	fmt.Fprintln(w)
 
 	for _, row := range table {
-		var algStr, lastUseStr, countStr string
+		var algStr, lastUseStr, lastIPStr, countStr string
 		if row.count > 0 {
 			lastUseStr = durationAsString(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
+			lastIPStr = row.lastIP
 		} else {
 			lastUseStr = "never"
 			countStr = "    -"
+			lastIPStr = "-"
 		}
 		if row.alg.name == "RSA" || row.alg.name == "ECDSA" {
 			// RSA and ECDSA can be generated with different key lengths
@@ -111,7 +113,7 @@ func printAlignedTable(table []tableRow, enableFingerprint bool) {
 			algStr = row.alg.name
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
-			algStr, lastUseStr, countStr, row.lastIP)
+			algStr, lastUseStr, countStr, lastIPStr)
 		if enableFingerprint {
 			fmt.Fprintf(w, "\t%s", row.fingerprint)
 		}
