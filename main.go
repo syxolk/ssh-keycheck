@@ -178,19 +178,47 @@ func printCSV(table []tableRow) {
 }
 
 func buildKeyTable() ([]tableRow, error) {
-	allkeys, err := getAuthorizedKeysForAllUsers()
-	if err != nil {
-		return nil, err
+	type allAuthKeys struct {
+		data map[string][]publickey
+		err  error
 	}
+	allkeysChan := make(chan allAuthKeys)
+	go func() {
+		data, err := getAuthorizedKeysForAllUsers()
+		allkeysChan <- allAuthKeys{
+			data: data,
+			err:  err,
+		}
+	}()
 
-	logs, err := parseAllLogFiles()
-	if err != nil {
-		return nil, err
+	type allLogFiles struct {
+		data map[string]map[string]accessSummary
+		err  error
+	}
+	allLogsChan := make(chan allLogFiles)
+	go func() {
+		data, err := parseAllLogFiles()
+		allLogsChan <- allLogFiles{
+			data: data,
+			err:  err,
+		}
+	}()
+
+	// Wait for both goroutines to finish
+	allkeys := <-allkeysChan
+	logs := <-allLogsChan
+
+	// Check for any errors that occured
+	if allkeys.err != nil {
+		return nil, allkeys.err
+	}
+	if logs.err != nil {
+		return nil, logs.err
 	}
 
 	// sort users by name
 	var usernames []string
-	for k := range allkeys {
+	for k := range allkeys.data {
 		usernames = append(usernames, k)
 	}
 	sort.Strings(usernames)
@@ -198,8 +226,8 @@ func buildKeyTable() ([]tableRow, error) {
 	var table []tableRow
 
 	for _, user := range usernames {
-		for _, key := range allkeys[user] {
-			summary := logs[user][key.fingerprintMD5]
+		for _, key := range allkeys.data[user] {
+			summary := logs.data[user][key.fingerprintMD5]
 
 			table = append(table, tableRow{
 				user:              user,
