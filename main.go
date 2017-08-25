@@ -360,17 +360,17 @@ func splitPubkey(pubkey string) (string, []int, error) {
 
 // Parse a log file written by sshd and return all logs with accepted logins
 // using an ssh key
-func parseLogFile(path string, accesses map[string]map[string]accessSummary) error {
+func parseLogFile(path string) (map[string]map[string]accessSummary, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	logFileYear := info.ModTime().Year()
 	logFileTimezone := info.ModTime().Location()
 
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
@@ -378,7 +378,7 @@ func parseLogFile(path string, accesses map[string]map[string]accessSummary) err
 	if strings.HasSuffix(path, ".gz") {
 		gr, err := gzip.NewReader(file)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer gr.Close()
 
@@ -386,6 +386,8 @@ func parseLogFile(path string, accesses map[string]map[string]accessSummary) err
 	} else {
 		scanner = bufio.NewScanner(file)
 	}
+
+	logs := make(map[string]map[string]accessSummary)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -395,23 +397,23 @@ func parseLogFile(path string, accesses map[string]map[string]accessSummary) err
 		}
 
 		// create map of fingerprints if not yet there
-		if accesses[log.user] == nil {
-			accesses[log.user] = make(map[string]accessSummary)
+		if logs[log.user] == nil {
+			logs[log.user] = make(map[string]accessSummary)
 		}
 
-		access := accesses[log.user][log.fingerprint]
+		access := logs[log.user][log.fingerprint]
 		if access.lastUse.IsZero() || log.ts.After(access.lastUse) {
 			access.lastUse = log.ts
 			access.lastIP = log.ip
 		}
 		access.count++
-		accesses[log.user][log.fingerprint] = access
+		logs[log.user][log.fingerprint] = access
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return logs, nil
 }
 
 func parseLogLine(year int, location *time.Location, line string) (access, bool) {
@@ -528,13 +530,54 @@ func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
 		return nil, err
 	}
 
-	logs := make(map[string]map[string]accessSummary)
+	type result struct {
+		logs map[string]map[string]accessSummary
+		err  error
+	}
+
+	c := make(chan result)
+
 	for _, file := range allfiles {
-		err := parseLogFile(file, logs)
-		if err != nil {
-			return nil, err
+		go func(file string) {
+			logs, err := parseLogFile(file)
+			if err != nil {
+				c <- result{err: err}
+			}
+			c <- result{logs: logs}
+		}(file)
+	}
+
+	allLogs := make(map[string]map[string]accessSummary)
+	var lastError error
+
+	for _ = range allfiles {
+		res := <-c
+		if res.err != nil {
+			lastError = res.err
+		} else {
+			mergeLogs(allLogs, res.logs)
 		}
 	}
 
-	return logs, nil
+	if lastError != nil {
+		return nil, lastError
+	}
+	return allLogs, nil
+}
+
+func mergeLogs(target map[string]map[string]accessSummary, source map[string]map[string]accessSummary) {
+	for user, submap := range source {
+		if target[user] == nil {
+			target[user] = make(map[string]accessSummary)
+		}
+		for fingerprint, summary := range submap {
+			targetSummary := target[user][fingerprint]
+			if summary.lastUse.After(targetSummary.lastUse) {
+				targetSummary.lastUse = summary.lastUse
+				targetSummary.lastIP = summary.lastIP
+			}
+			targetSummary.count += summary.count
+			target[user][fingerprint] = targetSummary
+		}
+	}
 }
