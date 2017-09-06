@@ -17,16 +17,23 @@ Download the latest package from the releases page and unpack it.
 
 ```
 ~$ sudo ssh-keycheck
-USER  NAME              TYPE      USAGE          COUNT  FINGERPRINT
-root  rsa-key-20170101  RSA-4096  never              -  00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
-root  rsa-key-20170102  ED25519   9 minutes ago      3  ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+USER  NAME              TYPE      LAST USE       COUNT  LAST IP
+root  rsa-key-20170101  RSA-4096  never              -  -
+root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10
+```
+
+```
+~$ sudo ssh-keycheck -fingerprint
+USER  NAME              TYPE      LAST USE       COUNT  LAST IP    FINGERPRINT
+root  rsa-key-20170101  RSA-4096  never              -  -          00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10  ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
 ```
 
 ```
 ~$ sudo ssh-keycheck -csv
-user,name,type,keylen,lastuse,count,fingerprint
-root,rsa-key-20170101,RSA,4096,,0,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
-root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+user,name,type,keylen,lastuse,count,lastip,fingerprint
+root,rsa-key-20170101,RSA,4096,,0,,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,10.0.0.10,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
 ```
 
 ## How does it work?
