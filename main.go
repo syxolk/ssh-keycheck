@@ -17,12 +17,15 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
 )
+
+var version = "undefined"
 
 type algorithm struct {
 	name   string
@@ -69,7 +72,13 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
 	enableFingerprint := flag.Bool("fingerprint", false, "Show fingerprint column")
+	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("ssh-keycheck", version, runtime.Version())
+		os.Exit(0)
+	}
 
 	table, err := buildKeyTable()
 	if err != nil {
