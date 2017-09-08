@@ -2,6 +2,7 @@ sudo: false
 language: go
 go:
   - 1.8
+  - 1.9
 
 before_deploy:
   - cd $GOPATH/bin
@@ -17,3 +18,4 @@ deploy:
   on:
     repo: syxolk/ssh-keycheck
     tags: true
+    go: 1.9
