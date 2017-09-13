@@ -9,4 +9,4 @@ test:
 
 .PHONY: clean
 clean:
-	rm ssh-keycheck
+	go clean
