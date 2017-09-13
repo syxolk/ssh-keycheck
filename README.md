@@ -60,4 +60,4 @@ go get github.com/syxolk/ssh-keycheck
 
 ## Concurrent execution
 
-![execution graph](https://raw.githubusercontent.com/syxolk/ssh-keycheck/concurrency/docs/execution.png)
+![execution graph](./docs/execution.svg)

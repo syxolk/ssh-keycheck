@@ -1,2 +1,2 @@
-execution.png: execution.dot
-	dot -Tpng execution.dot > execution.png
+execution.svg: execution.dot
+	dot -Tsvg execution.dot > execution.svg
