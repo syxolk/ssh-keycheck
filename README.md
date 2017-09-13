@@ -57,3 +57,7 @@ Requires a recent Go version (only tested with Go 1.8)
 ```
 go get github.com/syxolk/ssh-keycheck
 ```
+
+## Concurrent execution
+
+![execution graph](https://raw.githubusercontent.com/syxolk/ssh-keycheck/concurrency/docs/execution.png)
