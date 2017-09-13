@@ -1,0 +1,23 @@
+digraph execution {
+    rankdir="LR";
+
+    node [shape="box"];
+
+    start [label="ssh-keycheck"];
+    passwd [label="/etc/passwd" group=g1];
+    keys1 [label="/root/.ssh/authorized_keys" width=3];
+    keys2 [label="/home/deploy/.ssh/authorized_keys" width=3 group=g1];
+    keys3 [label="/home/dev/.ssh/authorized_keys" width=3];
+    logs [label="/var/log/" group=g2];
+    authlog1 [label="/var/log/auth.log" width=2];
+    authlog2 [label="/var/log/auth.log.1" width=2 group=g2];
+    authlog3 [label="/var/log/auth.log.2.gz" width=2];
+    keylist [label="List of all keys" group=g1];
+    mergelogs [label="Summary of logs" group=g2];
+    display [label="Display table"];
+
+    start -> {passwd, logs} [headport=w tailport=e];
+    passwd -> {keys1, keys2, keys3} -> keylist [headport=w tailport=e];
+    logs -> {authlog1, authlog2, authlog3} -> mergelogs [headport=w tailport=e];
+    {keylist, mergelogs} -> display [headport=w tailport=e];
+}
