@@ -179,47 +179,36 @@ func printCSV(table []tableRow) {
 }
 
 func buildKeyTable() ([]tableRow, error) {
-	type allAuthKeys struct {
-		data map[string][]publickey
-		err  error
-	}
-	allkeysChan := make(chan allAuthKeys)
-	go func() {
-		data, err := getAuthorizedKeysForAllUsers()
-		allkeysChan <- allAuthKeys{
-			data: data,
-			err:  err,
-		}
-	}()
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	type allLogFiles struct {
-		data map[string]map[string]accessSummary
-		err  error
-	}
-	allLogsChan := make(chan allLogFiles)
+	var allKeys map[string][]publickey
+	var allLogs map[string]map[string]accessSummary
+	var allKeysErr, allLogsErr error
+
 	go func() {
-		data, err := parseAllLogFiles()
-		allLogsChan <- allLogFiles{
-			data: data,
-			err:  err,
-		}
+		allKeys, allKeysErr = getAuthorizedKeysForAllUsers()
+		wg.Done()
+	}()
+	go func() {
+		allLogs, allLogsErr = parseAllLogFiles()
+		wg.Done()
 	}()
 
 	// Wait for both goroutines to finish
-	allkeys := <-allkeysChan
-	logs := <-allLogsChan
+	wg.Wait()
 
 	// Check for any errors that occured
-	if allkeys.err != nil {
-		return nil, allkeys.err
+	if allKeysErr != nil {
+		return nil, allKeysErr
 	}
-	if logs.err != nil {
-		return nil, logs.err
+	if allLogsErr != nil {
+		return nil, allLogsErr
 	}
 
 	// sort users by name
 	var usernames []string
-	for k := range allkeys.data {
+	for k := range allKeys {
 		usernames = append(usernames, k)
 	}
 	sort.Strings(usernames)
@@ -227,8 +216,8 @@ func buildKeyTable() ([]tableRow, error) {
 	var table []tableRow
 
 	for _, user := range usernames {
-		for _, key := range allkeys.data[user] {
-			summary := logs.data[user][key.fingerprintMD5]
+		for _, key := range allKeys[user] {
+			summary := allLogs[user][key.fingerprintMD5]
 
 			table = append(table, tableRow{
 				user:              user,
