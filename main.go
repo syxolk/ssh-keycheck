@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/csv"
@@ -33,9 +34,10 @@ type algorithm struct {
 }
 
 type publickey struct {
-	alg         algorithm
-	fingerprint string
-	name        string
+	alg               algorithm
+	fingerprintMD5    string
+	fingerprintSHA256 string
+	name              string
 }
 
 type unixuser struct {
@@ -57,13 +59,14 @@ type access struct {
 }
 
 type tableRow struct {
-	user        string
-	name        string
-	alg         algorithm
-	lastUse     time.Time
-	count       int
-	fingerprint string
-	lastIP      string
+	user              string
+	name              string
+	alg               algorithm
+	lastUse           time.Time
+	count             int
+	fingerprintMD5    string
+	fingerprintSHA256 string
+	lastIP            string
 }
 
 var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
@@ -71,7 +74,8 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
-	enableFingerprint := flag.Bool("fingerprint", false, "Show fingerprint column")
+	enableFingerprintMD5 := flag.Bool("fingerprint", false, "Show fingerprint (MD5) column")
+	enableFingerprintSHA256 := flag.Bool("fingerprint-sha256", false, "Show fingerprint (SHA256) column")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
 
@@ -89,17 +93,20 @@ func main() {
 	if *csv {
 		printCSV(table)
 	} else {
-		printAlignedTable(table, *enableFingerprint)
+		printAlignedTable(table, *enableFingerprintMD5, *enableFingerprintSHA256)
 	}
 }
 
-func printAlignedTable(table []tableRow, enableFingerprint bool) {
+func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFingerprintSHA256 bool) {
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "USER\tNAME\tTYPE\tLAST USE\tCOUNT\tLAST IP")
-	if enableFingerprint {
-		fmt.Fprintf(w, "\tFINGERPRINT")
+	if enableFingerprintMD5 {
+		fmt.Fprintf(w, "\tFINGERPRINT-MD5")
+	}
+	if enableFingerprintSHA256 {
+		fmt.Fprintf(w, "\tFINGERPRINT-SHA256")
 	}
 	fmt.Fprintln(w)
 
@@ -123,8 +130,11 @@ func printAlignedTable(table []tableRow, enableFingerprint bool) {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
 			algStr, lastUseStr, countStr, lastIPStr)
-		if enableFingerprint {
-			fmt.Fprintf(w, "\t%s", row.fingerprint)
+		if enableFingerprintMD5 {
+			fmt.Fprintf(w, "\t%s", row.fingerprintMD5)
+		}
+		if enableFingerprintSHA256 {
+			fmt.Fprintf(w, "\t%s", row.fingerprintSHA256)
 		}
 		fmt.Fprintln(w)
 	}
@@ -143,6 +153,7 @@ func printCSV(table []tableRow) {
 		"count",
 		"lastip",
 		"fingerprint",
+		"fingerprint_sha256",
 	})
 
 	for _, row := range table {
@@ -159,7 +170,8 @@ func printCSV(table []tableRow) {
 			lastUseStr,
 			strconv.Itoa(row.count),
 			row.lastIP,
-			row.fingerprint,
+			row.fingerprintMD5,
+			row.fingerprintSHA256,
 		})
 	}
 
@@ -188,16 +200,17 @@ func buildKeyTable() ([]tableRow, error) {
 
 	for _, user := range usernames {
 		for _, key := range allkeys[user] {
-			summary := logs[user][key.fingerprint]
+			summary := logs[user][key.fingerprintMD5]
 
 			table = append(table, tableRow{
-				user:        user,
-				name:        key.name,
-				alg:         key.alg,
-				lastUse:     summary.lastUse,
-				count:       summary.count,
-				fingerprint: key.fingerprint,
-				lastIP:      summary.lastIP,
+				user:              user,
+				name:              key.name,
+				alg:               key.alg,
+				lastUse:           summary.lastUse,
+				count:             summary.count,
+				fingerprintMD5:    key.fingerprintMD5,
+				fingerprintSHA256: key.fingerprintSHA256,
+				lastIP:            summary.lastIP,
 			})
 		}
 	}
@@ -218,9 +231,10 @@ func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 			continue
 		}
 		keys = append(keys, publickey{
-			alg:         parseKeyType(splits[1]),
-			fingerprint: computeFingerprint(splits[1]),
-			name:        splits[2],
+			alg:               parseKeyType(splits[1]),
+			fingerprintMD5:    fingerprintMD5(splits[1]),
+			fingerprintSHA256: fingerprintSHA256(splits[1]),
+			name:              splits[2],
 		})
 	}
 	if err := scanner.Err(); err != nil {
@@ -230,7 +244,7 @@ func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 	return keys, nil
 }
 
-func computeFingerprint(pubkey string) string {
+func fingerprintMD5(pubkey string) string {
 	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
 	if err != nil {
 		return ""
@@ -248,6 +262,19 @@ func computeFingerprint(pubkey string) string {
 		}
 	}
 	return colonhash.String()
+}
+
+func fingerprintSHA256(pubkey string) string {
+	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
+	if err != nil {
+		return ""
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubkeyBytes)
+	hash := base64.RawStdEncoding.EncodeToString(hasher.Sum(nil))
+
+	return hash
 }
 
 func parseKeyType(pubkey string) algorithm {
