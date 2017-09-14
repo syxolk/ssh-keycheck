@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 )
@@ -503,20 +504,18 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 		return nil, err
 	}
 
-	type result struct {
-		user string
-		keys []publickey
-		ok   bool
-	}
-
-	c := make(chan result)
+	keys := make(map[string][]publickey)
+	var mut sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, user := range users {
+		wg.Add(1)
 		go func(user unixuser) {
+			defer wg.Done()
+
 			// open ~/.ssh/authorized_keys
 			file, err := os.Open(path.Join(user.home, ".ssh", "authorized_keys"))
 			if err != nil {
-				c <- result{ok: false}
 				return
 			}
 			defer file.Close()
@@ -524,25 +523,16 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 			var reader io.Reader = file
 			userkeys, err := parseAuthorizedKeys(&reader)
 			if err != nil {
-				c <- result{ok: false}
 				return
 			}
-			c <- result{
-				user: user.name,
-				keys: userkeys,
-				ok:   true,
-			}
+
+			mut.Lock()
+			keys[user.name] = userkeys
+			mut.Unlock()
 		}(user)
 	}
 
-	keys := make(map[string][]publickey)
-
-	for _ = range users {
-		res := <-c
-		if res.ok {
-			keys[res.user] = res.keys
-		}
-	}
+	wg.Wait()
 
 	return keys, nil
 }
