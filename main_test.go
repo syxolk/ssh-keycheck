@@ -239,4 +239,12 @@ func TestParseLogLine(t *testing.T) {
 	if !line.ts.Equal(expectedTime) {
 		t.Errorf("Expected %s but got %s", expectedTime, line.ts)
 	}
+
+	connectionLine := "Sep 10 06:40:50 vserver sshd[12345]: " +
+		"Connection from 100.200.30.130 port 55339 on 180.60.50.150 port 22"
+
+	_, ok = parseLogLine(2017, utc, connectionLine)
+	if ok {
+		t.Fatal("Successfully parsed log line but expected to fail")
+	}
 }
