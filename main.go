@@ -13,7 +13,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -520,26 +519,8 @@ func durationAsString(dur time.Duration) string {
 	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
-// Returns a list of all files matching /var/log/auth.log*
-func getLogFiles() ([]string, error) {
-	const logDir = "/var/log"
-	files, err := ioutil.ReadDir(logDir)
-	if err != nil {
-		return nil, err
-	}
-
-	logFiles := []string{}
-	for _, f := range files {
-		if matched, err := filepath.Match("auth.log*", f.Name()); err == nil && matched {
-			logFiles = append(logFiles, filepath.Join(logDir, f.Name()))
-		}
-	}
-
-	return logFiles, nil
-}
-
 func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
-	allfiles, err := getLogFiles()
+	allfiles, err := filepath.Glob("/var/log/auth.log*")
 	if err != nil {
 		return nil, err
 	}
