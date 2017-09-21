@@ -560,35 +560,29 @@ func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
 		return nil, err
 	}
 
-	type result struct {
-		logs map[string]map[string]accessSummary
-		err  error
-	}
-
-	c := make(chan result)
-
-	for _, file := range allfiles {
-		go func(file string) {
-			logs, err := parseLogFile(file)
-			if err != nil {
-				c <- result{err: err}
-				return
-			}
-			c <- result{logs: logs}
-		}(file)
-	}
-
 	allLogs := make(map[string]map[string]accessSummary)
 	var lastError error
 
-	for _ = range allfiles {
-		res := <-c
-		if res.err != nil {
-			lastError = res.err
-		} else {
-			mergeLogs(allLogs, res.logs)
-		}
+	var mut sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, file := range allfiles {
+		wg.Add(1)
+		go func(file string) {
+			defer wg.Done()
+			logs, err := parseLogFile(file)
+
+			mut.Lock()
+			if err != nil {
+				lastError = err
+			} else {
+				mergeLogs(allLogs, logs)
+			}
+			mut.Unlock()
+		}(file)
 	}
+
+	wg.Wait()
 
 	if lastError != nil {
 		return nil, lastError
