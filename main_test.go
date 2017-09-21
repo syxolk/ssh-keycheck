@@ -179,7 +179,8 @@ func TestDurationAsString(t *testing.T) {
 		in  time.Duration
 		out string
 	}{
-		{12 * time.Second, "just now"},
+		{999 * time.Millisecond, "just now"},
+		{12 * time.Second, "12 seconds ago"},
 		{1 * time.Minute, "1 minute ago"},
 		{2 * time.Minute, "2 minutes ago"},
 		{1 * time.Hour, "1 hour ago"},
