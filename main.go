@@ -498,8 +498,11 @@ func durationAsString(dur time.Duration) string {
 	var count int
 	var unit string
 
-	if dur.Minutes() < 1 {
+	if dur.Seconds() < 1 {
 		return "just now"
+	} else if dur.Minutes() < 1 {
+		count = int(dur.Seconds())
+		unit = "second"
 	} else if dur.Hours() < 1 {
 		count = int(dur.Minutes())
 		unit = "minute"
