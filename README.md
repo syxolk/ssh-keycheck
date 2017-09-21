@@ -11,29 +11,53 @@ mode.
 
 ## Installation
 
-Download the latest package from the releases page and unpack it.
+Download the latest package from the [releases page](https://github.com/syxolk/ssh-keycheck/releases).
+
+```sh
+tar xvf ssh-keycheck.tar.gz
+sudo cp ssh-keycheck /usr/local/bin
+
+# Add setuid flag to allow execution of ssh-keycheck without sudo
+sudo chown root:root /usr/local/bin/ssh-keycheck
+sudo chmod u+s /usr/local/bin/ssh-keycheck
+```
+
+Please inform yourself about [setuid](https://en.wikipedia.org/wiki/Setuid) before setting it.
 
 ## Usage
 
 ```
-~$ sudo ssh-keycheck
+~$ ssh-keycheck -help
+Usage of ssh-keycheck:
+  -csv
+        Print table as CSV (RFC 4180) using RFC 3339 for dates
+  -fingerprint
+        Show fingerprint (MD5) column
+  -fingerprint-sha256
+        Show fingerprint (SHA256) column
+  -version
+        Show version and exit
+```
+
+```
+~$ ssh-keycheck -help
 USER  NAME              TYPE      LAST USE       COUNT  LAST IP
 root  rsa-key-20170101  RSA-4096  never              -  -
 root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10
 ```
 
 ```
-~$ sudo ssh-keycheck -fingerprint
-USER  NAME              TYPE      LAST USE       COUNT  LAST IP    FINGERPRINT
+~$ ssh-keycheck -fingerprint
+USER  NAME              TYPE      LAST USE       COUNT  LAST IP    FINGERPRINT-MD5
 root  rsa-key-20170101  RSA-4096  never              -  -          00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
 root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10  ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
 ```
 
 ```
-~$ sudo ssh-keycheck -csv
-user,name,type,keylen,lastuse,count,lastip,fingerprint
-root,rsa-key-20170101,RSA,4096,,0,,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
-root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,10.0.0.10,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+~$ ssh-keycheck -csv
+user,name,type,keylen,lastuse,count,lastip,fingerprint,fingerprint_sha256
+root,rsa-key-20170101,RSA,4096,,0,,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff,AbCdEfGhIjKlMnOpQrStUvWxYz/+
+root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,10.0.0.10,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00,+/zYxWvUtSrQpOnMlKjIhGfEdCbA
 ```
 
 ## How does it work?
@@ -52,7 +76,7 @@ LogLevel VERBOSE
 The log files under `/var/log` require root rights.
 
 ## Development
-Requires a recent Go version (only tested with Go 1.8)
+Requires a recent Go version (only tested with Go >=1.8)
 
 ```
 go get github.com/syxolk/ssh-keycheck
