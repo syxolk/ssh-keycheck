@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"io"
 	"strings"
 	"testing"
@@ -90,12 +91,18 @@ func TestComputeFingerprint(t *testing.T) {
 	}
 
 	for _, p := range parameters {
-		md5 := fingerprintMD5(p.pubkey)
+		k, err := base64.StdEncoding.DecodeString(p.pubkey)
+		if err != nil {
+			t.Errorf("Could not decode pubkey %s", p.pubkey)
+			continue
+		}
+
+		md5 := fingerprintMD5(k)
 		if md5 != p.fingerprintMD5 {
 			t.Errorf("Expected MD5 %s but got %s", p.fingerprintMD5, md5)
 		}
 
-		sha256 := fingerprintSHA256(p.pubkey)
+		sha256 := fingerprintSHA256(k)
 		if sha256 != p.fingerprintSHA256 {
 			t.Errorf("Expected SHA256 %s but got %s", p.fingerprintSHA256, sha256)
 		}
@@ -199,7 +206,7 @@ func TestDurationAsString(t *testing.T) {
 }
 
 func TestParseKeyType(t *testing.T) {
-	keys := []struct {
+	parameters := []struct {
 		pubkey string
 		name   string
 		keylen int
@@ -214,13 +221,19 @@ func TestParseKeyType(t *testing.T) {
 		{pubkeyEd25519, "ED25519", 256},
 	}
 
-	for _, k := range keys {
-		c := parseKeyType(k.pubkey)
-		if c.name != k.name {
-			t.Errorf("Expected %s but got %s", k.name, c.name)
+	for _, p := range parameters {
+		k, err := base64.StdEncoding.DecodeString(p.pubkey)
+		if err != nil {
+			t.Errorf("Could not decode pubkey %s", p.pubkey)
+			continue
 		}
-		if c.keylen != k.keylen {
-			t.Errorf("Expected %s keylen %d but got %d", k.name, k.keylen, c.keylen)
+
+		c := parseKeyType(k)
+		if c.name != p.name {
+			t.Errorf("Expected %s but got %s", p.name, c.name)
+		}
+		if c.keylen != p.keylen {
+			t.Errorf("Expected %s keylen %d but got %d", p.name, p.keylen, c.keylen)
 		}
 	}
 

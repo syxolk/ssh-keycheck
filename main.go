@@ -186,6 +186,7 @@ func buildKeyTable() ([]tableRow, error) {
 	var allLogs map[string]map[string]accessSummary
 	var allKeysErr, allLogsErr error
 
+	// Execute log file parsing and collecting authorized keys in parallel
 	go func() {
 		allKeys, allKeysErr = getAuthorizedKeysForAllUsers()
 		wg.Done()
@@ -206,7 +207,7 @@ func buildKeyTable() ([]tableRow, error) {
 		return nil, allLogsErr
 	}
 
-	// sort users by name
+	// Sort users by name
 	var usernames []string
 	for k := range allKeys {
 		usernames = append(usernames, k)
@@ -239,7 +240,7 @@ func buildKeyTable() ([]tableRow, error) {
 // algorithm, pubkey and name.
 // Invalid lines are ignored.
 func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
-	// every public key is in its own line
+	// Every public key is in its own line
 	var keys []publickey
 	scanner := bufio.NewScanner(*file)
 	for scanner.Scan() {
@@ -247,10 +248,19 @@ func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 		if len(splits) != 3 {
 			continue
 		}
+
+		// Public keys are always base64 encoded
+		pubkey, err := base64.StdEncoding.DecodeString(splits[1])
+		if err != nil {
+			continue
+		}
+
+		// Don't use splits[0] because the algorithm can be extracted from
+		// the pubkey
 		keys = append(keys, publickey{
-			alg:               parseKeyType(splits[1]),
-			fingerprintMD5:    fingerprintMD5(splits[1]),
-			fingerprintSHA256: fingerprintSHA256(splits[1]),
+			alg:               parseKeyType(pubkey),
+			fingerprintMD5:    fingerprintMD5(pubkey),
+			fingerprintSHA256: fingerprintSHA256(pubkey),
 			name:              splits[2],
 		})
 	}
@@ -261,44 +271,40 @@ func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
 	return keys, nil
 }
 
-func fingerprintMD5(pubkey string) string {
-	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
-	if err != nil {
-		return ""
-	}
-
+// Compute the MD5 fingerprint of a given public key
+// The MD5 hash is hex encoded and divided into groups of two characters
+// separated by colons
+// e.g.: "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3"
+func fingerprintMD5(pubkey []byte) string {
 	hasher := md5.New()
-	hasher.Write(pubkeyBytes)
+	hasher.Write(pubkey)
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
 	var colonhash bytes.Buffer
 	for pos, ch := range hash {
 		colonhash.WriteRune(ch)
 		if pos%2 == 1 && pos < len(hash)-1 {
-			colonhash.WriteString(":")
+			colonhash.WriteRune(':')
 		}
 	}
 	return colonhash.String()
 }
 
-func fingerprintSHA256(pubkey string) string {
-	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
-	if err != nil {
-		return ""
-	}
-
+// Compute the SHA256 fingerprint of a given public key.
+// The SHA256 hash is base64 encoded (Raw encoding / No padding).
+// e.g.: "ijtgEqybuFNrfP777QRpiuQzhbjUaSbeqcEPXsJFqnc"
+func fingerprintSHA256(pubkey []byte) string {
 	hasher := sha256.New()
-	hasher.Write(pubkeyBytes)
+	hasher.Write(pubkey)
 	hash := base64.RawStdEncoding.EncodeToString(hasher.Sum(nil))
 
 	return hash
 }
 
-func parseKeyType(pubkey string) algorithm {
-	name, partLengths, err := splitPubkey(pubkey)
-	if err != nil {
-		return algorithm{name: "error"}
-	}
+// Parse public key and return the algorithm's name and key length.
+// Uses the splitPubkey helper function to do the actual work.
+func parseKeyType(pubkey []byte) algorithm {
+	name, partLengths := splitPubkey(pubkey)
 
 	if len(partLengths) == 0 {
 		return algorithm{name: "error"}
@@ -306,6 +312,9 @@ func parseKeyType(pubkey string) algorithm {
 
 	switch name {
 	case "ssh-rsa":
+		// RSA key length is determined by the length of the modulus.
+		// The modulus is the third part of the parsed key
+		// https://security.stackexchange.com/a/42272
 		keylen := 0
 		if len(partLengths) == 3 {
 			// This should always be computed
@@ -316,11 +325,13 @@ func parseKeyType(pubkey string) algorithm {
 			keylen: keylen,
 		}
 	case "ssh-ed25519":
+		// ED25519 always uses a key length of 256 bits
 		return algorithm{
 			name:   "ED25519",
 			keylen: 256,
 		}
 	case "ssh-dss":
+		// DSA always uses a key length of 1024 bits
 		return algorithm{
 			name:   "DSA",
 			keylen: 1024,
@@ -345,13 +356,13 @@ func parseKeyType(pubkey string) algorithm {
 	return algorithm{name: "unknown"}
 }
 
-func splitPubkey(pubkey string) (string, []int, error) {
-	pubkeyBytes, err := base64.StdEncoding.DecodeString(pubkey)
-	if err != nil {
-		return "", nil, err
-	}
-
-	buf := bytes.NewReader(pubkeyBytes)
+// Parses a public key and returns its first part (the name) and the lengths
+// of all parts.
+// A public key can be divided in one or more parts. Every part consists of
+// a length field (4 bytes, big endian) and a data field. The length field
+// specifies the length of the data field in bytes.
+func splitPubkey(pubkey []byte) (string, []int) {
+	buf := bytes.NewReader(pubkey)
 	firstPart := ""
 	var partLengths []int
 	for {
@@ -373,7 +384,7 @@ func splitPubkey(pubkey string) (string, []int, error) {
 		partLengths = append(partLengths, int(length))
 	}
 
-	return firstPart, partLengths, nil
+	return firstPart, partLengths
 }
 
 // Parse a log file written by sshd and return all logs with accepted logins
