@@ -40,24 +40,10 @@ Usage of ssh-keycheck:
 ```
 
 ```
-~$ ssh-keycheck -help
-USER  NAME              TYPE      LAST USE       COUNT  LAST IP
-root  rsa-key-20170101  RSA-4096  never              -  -
-root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10
-```
-
-```
-~$ ssh-keycheck -fingerprint
-USER  NAME              TYPE      LAST USE       COUNT  LAST IP    FINGERPRINT-MD5
-root  rsa-key-20170101  RSA-4096  never              -  -          00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
-root  rsa-key-20170102  ED25519   9 minutes ago      3  10.0.0.10  ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
-```
-
-```
-~$ ssh-keycheck -csv
-user,name,type,keylen,lastuse,count,lastip,fingerprint,fingerprint_sha256
-root,rsa-key-20170101,RSA,4096,,0,,00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff,AbCdEfGhIjKlMnOpQrStUvWxYz/+
-root,rsa-key-20170102,ED25519,256,2017-08-22T19:45:32+02:00,3,10.0.0.10,ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00,+/zYxWvUtSrQpOnMlKjIhGfEdCbA
+~$ ssh-keycheck
+USER  NAME              TYPE      SECURITY  LAST USE       COUNT  LAST IP
+root  rsa-key-20170101  RSA-4096  -         never              -  -
+root  rsa-key-20170102  DSA       insecure  9 minutes ago      3  10.0.0.10
 ```
 
 ## How does it work?
@@ -85,3 +71,13 @@ go get github.com/syxolk/ssh-keycheck
 ## Concurrent execution
 
 ![execution graph](./docs/execution.svg)
+
+## Algorithm security
+
+The column `SECURITY` gives a hint whether the key algorithm is
+insecure or became deprecated. The following algorithms are currently
+considered insecure:
+
+- [DSA was disabled in OpenSSH 7.0](https://www.gentoo.org/support/news-items/2015-08-13-openssh-weak-keys.html)
+- [ECDSA is difficult to implement and may be designed with a backdoor](https://wiki.archlinux.org/index.php/SSH_keys#ECDSA)
+- [RSA with key lengths below 2048 are insecure](https://www.keylength.com/en/4/)

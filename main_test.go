@@ -354,3 +354,34 @@ func TestMergeLogs(t *testing.T) {
 		t.Errorf("Expected %#v\n but got %#v", expectedTarget, target)
 	}
 }
+
+func TestIsInsecure(t *testing.T) {
+	parameters := []struct {
+		pubkey   string
+		insecure bool
+	}{
+		{pubkeyRsa1024, true},
+		{pubkeyRsa2048, false},
+		{pubkeyRsa4096, false},
+		{pubkeyDsa, true},
+		{pubkeyEcdsa256, true},
+		{pubkeyEcdsa384, true},
+		{pubkeyEcdsa521, true},
+		{pubkeyEd25519, false},
+	}
+
+	for _, p := range parameters {
+		k, err := base64.StdEncoding.DecodeString(p.pubkey)
+		if err != nil {
+			t.Errorf("Could not decode pubkey %s", p.pubkey)
+			continue
+		}
+
+		c := parseKeyType(k)
+		insecure := c.isInsecure()
+		if insecure != p.insecure {
+			t.Errorf("Expected %t but got %t for %s-%d", p.insecure, insecure,
+				c.name, c.keylen)
+		}
+	}
+}

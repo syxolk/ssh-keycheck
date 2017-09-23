@@ -101,7 +101,7 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tTYPE\tLAST USE\tCOUNT\tLAST IP")
+	fmt.Fprintf(w, "USER\tNAME\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
 	if enableFingerprintMD5 {
 		fmt.Fprintf(w, "\tFINGERPRINT-MD5")
 	}
@@ -111,7 +111,7 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 	fmt.Fprintln(w)
 
 	for _, row := range table {
-		var algStr, lastUseStr, lastIPStr, countStr string
+		var algStr, lastUseStr, lastIPStr, countStr, insecureStr string
 		if row.count > 0 {
 			lastUseStr = durationAsString(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
@@ -128,8 +128,13 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 			// DSA and ED25519 have fixed key lengths
 			algStr = row.alg.name
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
-			algStr, lastUseStr, countStr, lastIPStr)
+		if row.alg.isInsecure() {
+			insecureStr = "insecure"
+		} else {
+			insecureStr = "ok"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
+			algStr, insecureStr, lastUseStr, countStr, lastIPStr)
 		if enableFingerprintMD5 {
 			fmt.Fprintf(w, "\t%s", row.fingerprintMD5)
 		}
@@ -149,6 +154,7 @@ func printCSV(table []tableRow) {
 		"name",
 		"type",
 		"keylen",
+		"insecure",
 		"lastuse",
 		"count",
 		"lastip",
@@ -167,6 +173,7 @@ func printCSV(table []tableRow) {
 			row.name,
 			row.alg.name,
 			strconv.Itoa(row.alg.keylen),
+			strconv.FormatBool(row.alg.isInsecure()),
 			lastUseStr,
 			strconv.Itoa(row.count),
 			row.lastIP,
@@ -616,4 +623,14 @@ func mergeLogs(target map[string]map[string]accessSummary, source map[string]map
 			target[user][fingerprint] = targetSummary
 		}
 	}
+}
+
+// Checks if the algorithm is discouraged to be used
+// DSA: https://www.gentoo.org/support/news-items/2015-08-13-openssh-weak-keys.html
+// RSA: https://www.keylength.com/en/4/
+// ECDSA: https://wiki.archlinux.org/index.php/SSH_keys#ECDSA
+func (alg *algorithm) isInsecure() bool {
+	return alg.name == "DSA" ||
+		alg.name == "ECDSA" ||
+		(alg.name == "RSA" && alg.keylen < 2048)
 }
