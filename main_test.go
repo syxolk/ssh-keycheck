@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -279,5 +280,77 @@ func TestParseLogLine(t *testing.T) {
 	_, ok = parseLogLine(2017, utc, connectionLine)
 	if ok {
 		t.Fatal("Successfully parsed log line but expected to fail")
+	}
+}
+
+func TestMergeLogs(t *testing.T) {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	target := map[string]map[string]accessSummary{
+		"root": {
+			"aa:bb": accessSummary{
+				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.1",
+				count:   1,
+			},
+			"cc:dd": accessSummary{
+				lastUse: time.Date(2017, 9, 20, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.2",
+				count:   5,
+			},
+		},
+	}
+
+	source := map[string]map[string]accessSummary{
+		"root": {
+			"aa:bb": accessSummary{
+				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.1",
+				count:   1,
+			},
+			"cc:dd": accessSummary{
+				lastUse: time.Date(2017, 9, 21, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.3",
+				count:   3,
+			},
+		},
+		"deploy": {
+			"ee:ff": accessSummary{
+				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.4",
+				count:   2,
+			},
+		},
+	}
+
+	expectedTarget := map[string]map[string]accessSummary{
+		"root": {
+			"aa:bb": accessSummary{
+				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.1",
+				count:   2,
+			},
+			"cc:dd": accessSummary{
+				lastUse: time.Date(2017, 9, 21, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.3",
+				count:   8,
+			},
+		},
+		"deploy": {
+			"ee:ff": accessSummary{
+				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
+				lastIP:  "10.0.0.4",
+				count:   2,
+			},
+		},
+	}
+
+	mergeLogs(target, source)
+
+	if !reflect.DeepEqual(target, expectedTarget) {
+		t.Errorf("Expected %#v\n but got %#v", expectedTarget, target)
 	}
 }
