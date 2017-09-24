@@ -28,8 +28,18 @@ import (
 
 var version = "undefined"
 
+type algorithmType int
+
+const (
+	unknownAlgorithm algorithmType = iota
+	rsa
+	dsa
+	ecdsa
+	ed25519
+)
+
 type algorithm struct {
-	name   string
+	name   algorithmType
 	keylen int
 }
 
@@ -121,12 +131,12 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 			countStr = "    -"
 			lastIPStr = "-"
 		}
-		if row.alg.name == "RSA" || row.alg.name == "ECDSA" {
+		if row.alg.name == rsa || row.alg.name == ecdsa {
 			// RSA and ECDSA can be generated with different key lengths
 			algStr = fmt.Sprintf("%s-%d", row.alg.name, row.alg.keylen)
 		} else {
 			// DSA and ED25519 have fixed key lengths
-			algStr = row.alg.name
+			algStr = row.alg.name.String()
 		}
 		if row.alg.isInsecure() {
 			insecureStr = "insecure"
@@ -171,7 +181,7 @@ func printCSV(table []tableRow) {
 		w.Write([]string{
 			row.user,
 			row.name,
-			row.alg.name,
+			row.alg.name.String(),
 			strconv.Itoa(row.alg.keylen),
 			strconv.FormatBool(row.alg.isInsecure()),
 			lastUseStr,
@@ -314,7 +324,7 @@ func parseKeyType(pubkey []byte) algorithm {
 	name, partLengths := splitPubkey(pubkey)
 
 	if len(partLengths) == 0 {
-		return algorithm{name: "error"}
+		return algorithm{name: unknownAlgorithm}
 	}
 
 	switch name {
@@ -328,39 +338,39 @@ func parseKeyType(pubkey []byte) algorithm {
 			keylen = 8 * (partLengths[2] - 1)
 		}
 		return algorithm{
-			name:   "RSA",
+			name:   rsa,
 			keylen: keylen,
 		}
 	case "ssh-ed25519":
 		// ED25519 always uses a key length of 256 bits
 		return algorithm{
-			name:   "ED25519",
+			name:   ed25519,
 			keylen: 256,
 		}
 	case "ssh-dss":
 		// DSA always uses a key length of 1024 bits
 		return algorithm{
-			name:   "DSA",
+			name:   dsa,
 			keylen: 1024,
 		}
 	case "ecdsa-sha2-nistp521":
 		return algorithm{
-			name:   "ECDSA",
+			name:   ecdsa,
 			keylen: 521,
 		}
 	case "ecdsa-sha2-nistp384":
 		return algorithm{
-			name:   "ECDSA",
+			name:   ecdsa,
 			keylen: 384,
 		}
 	case "ecdsa-sha2-nistp256":
 		return algorithm{
-			name:   "ECDSA",
+			name:   ecdsa,
 			keylen: 256,
 		}
 	}
 
-	return algorithm{name: "unknown"}
+	return algorithm{name: unknownAlgorithm}
 }
 
 // Parses a public key and returns its first part (the name) and the lengths
@@ -630,7 +640,21 @@ func mergeLogs(target map[string]map[string]accessSummary, source map[string]map
 // RSA: https://www.keylength.com/en/4/
 // ECDSA: https://wiki.archlinux.org/index.php/SSH_keys#ECDSA
 func (alg *algorithm) isInsecure() bool {
-	return alg.name == "DSA" ||
-		alg.name == "ECDSA" ||
-		(alg.name == "RSA" && alg.keylen < 2048)
+	return alg.name == dsa ||
+		alg.name == ecdsa ||
+		(alg.name == rsa && alg.keylen < 2048)
+}
+
+func (name algorithmType) String() string {
+	switch name {
+	case rsa:
+		return "RSA"
+	case dsa:
+		return "DSA"
+	case ecdsa:
+		return "ECDSA"
+	case ed25519:
+		return "ED25519"
+	}
+	return "[unknown]"
 }

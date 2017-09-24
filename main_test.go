@@ -130,7 +130,7 @@ func TestParseAuthorizedKeys(t *testing.T) {
 			keys[0].name)
 	}
 
-	if keys[0].alg.name != "RSA" {
+	if keys[0].alg.name != rsa {
 		t.Errorf("Expected algorithm %s but got %s", "RSA",
 			keys[0].alg.name)
 	}
@@ -209,17 +209,17 @@ func TestDurationAsString(t *testing.T) {
 func TestParseKeyType(t *testing.T) {
 	parameters := []struct {
 		pubkey string
-		name   string
+		name   algorithmType
 		keylen int
 	}{
-		{pubkeyRsa1024, "RSA", 1024},
-		{pubkeyRsa2048, "RSA", 2048},
-		{pubkeyRsa4096, "RSA", 4096},
-		{pubkeyDsa, "DSA", 1024},
-		{pubkeyEcdsa256, "ECDSA", 256},
-		{pubkeyEcdsa384, "ECDSA", 384},
-		{pubkeyEcdsa521, "ECDSA", 521},
-		{pubkeyEd25519, "ED25519", 256},
+		{pubkeyRsa1024, rsa, 1024},
+		{pubkeyRsa2048, rsa, 2048},
+		{pubkeyRsa4096, rsa, 4096},
+		{pubkeyDsa, dsa, 1024},
+		{pubkeyEcdsa256, ecdsa, 256},
+		{pubkeyEcdsa384, ecdsa, 384},
+		{pubkeyEcdsa521, ecdsa, 521},
+		{pubkeyEd25519, ed25519, 256},
 	}
 
 	for _, p := range parameters {
