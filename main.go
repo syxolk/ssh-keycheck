@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -57,7 +58,7 @@ type unixuser struct {
 
 type accessSummary struct {
 	lastUse time.Time
-	lastIP  string
+	lastIP  net.IP
 	count   int
 }
 
@@ -65,7 +66,7 @@ type access struct {
 	user        string
 	fingerprint string
 	ts          time.Time
-	ip          string
+	ip          net.IP
 }
 
 type tableRow struct {
@@ -245,7 +246,7 @@ func buildKeyTable() ([]tableRow, error) {
 				count:             summary.count,
 				fingerprintMD5:    key.fingerprintMD5,
 				fingerprintSHA256: key.fingerprintSHA256,
-				lastIP:            summary.lastIP,
+				lastIP:            summary.lastIP.String(),
 			})
 		}
 	}
@@ -477,7 +478,7 @@ func parseLogLine(year int, location *time.Location, line string) (access, bool)
 
 	return access{
 		user:        m[2],
-		ip:          m[3],
+		ip:          net.ParseIP(m[3]),
 		fingerprint: m[4],
 		ts:          ts,
 	}, true

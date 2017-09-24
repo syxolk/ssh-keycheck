@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"io"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -261,7 +262,7 @@ func TestParseLogLine(t *testing.T) {
 			line.fingerprint)
 	}
 
-	if line.ip != "127.0.0.1" {
+	if !line.ip.Equal(net.IPv4(127, 0, 0, 1)) {
 		t.Errorf("Expected %s but got %s", "127.0.0.1", line.ip)
 	}
 
@@ -293,12 +294,12 @@ func TestMergeLogs(t *testing.T) {
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.1",
+				lastIP:  net.IPv4(10, 0, 0, 1),
 				count:   1,
 			},
 			"cc:dd": accessSummary{
 				lastUse: time.Date(2017, 9, 20, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.2",
+				lastIP:  net.IPv4(10, 0, 0, 2),
 				count:   5,
 			},
 		},
@@ -308,19 +309,19 @@ func TestMergeLogs(t *testing.T) {
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.1",
+				lastIP:  net.IPv4(10, 0, 0, 1),
 				count:   1,
 			},
 			"cc:dd": accessSummary{
 				lastUse: time.Date(2017, 9, 21, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.3",
+				lastIP:  net.IPv4(10, 0, 0, 3),
 				count:   3,
 			},
 		},
 		"deploy": {
 			"ee:ff": accessSummary{
 				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.4",
+				lastIP:  net.IPv4(10, 0, 0, 4),
 				count:   2,
 			},
 		},
@@ -330,19 +331,19 @@ func TestMergeLogs(t *testing.T) {
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.1",
+				lastIP:  net.IPv4(10, 0, 0, 1),
 				count:   2,
 			},
 			"cc:dd": accessSummary{
 				lastUse: time.Date(2017, 9, 21, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.3",
+				lastIP:  net.IPv4(10, 0, 0, 3),
 				count:   8,
 			},
 		},
 		"deploy": {
 			"ee:ff": accessSummary{
 				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
-				lastIP:  "10.0.0.4",
+				lastIP:  net.IPv4(10, 0, 0, 4),
 				count:   2,
 			},
 		},
