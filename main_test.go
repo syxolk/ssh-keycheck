@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"io"
 	"net"
+	"os"
+	"path"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -385,6 +389,264 @@ func TestIsInsecure(t *testing.T) {
 		if insecure != p.insecure {
 			t.Errorf("Expected %t but got %t for %s-%d", p.insecure, insecure,
 				c.name, c.keylen)
+		}
+	}
+}
+
+func TestAlgorithmTypeString(t *testing.T) {
+	parameters := []algorithmType{rsa, ecdsa, ed25519, dsa}
+
+	for _, p := range parameters {
+		s := p.String()
+		if len(s) == 0 || s == "[unknown]" {
+			t.Errorf("Expected algorithm name but got '%s'", s)
+		}
+	}
+}
+
+func getTestDirectory(t *testing.T) string {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to call Getwd: %s", err)
+	}
+
+	testDir := path.Join(wd, "test")
+
+	info, err := os.Stat(testDir)
+	if err != nil {
+		t.Fatalf("Path does not exist: %s", testDir)
+	}
+	if !info.IsDir() {
+		t.Fatalf("Path is not a directory: %s", testDir)
+	}
+
+	return testDir
+}
+
+func TestGetAuthorizedKeysForAllUsers(t *testing.T) {
+	keys, err := getAuthorizedKeysForAllUsers(getTestDirectory(t))
+	if err != nil {
+		t.Fatalf("Failed to call getAuthorizedKeysForUsers: %s", err)
+	}
+
+	parameters := map[string][]publickey{
+		"root": {
+			{
+				alg:            algorithm{name: ed25519},
+				comment:        "test@github.com",
+				fingerprintMD5: fingerprintEd25519,
+			},
+		},
+		"deploy": {
+			{
+				alg:            algorithm{name: ecdsa},
+				comment:        "ecdsa@example.com",
+				fingerprintMD5: fingerprintEcdsa256,
+			},
+		},
+	}
+
+	for n, p := range parameters {
+		if len(keys[n]) != len(p) {
+			t.Fatalf("Expected %s to have %d keys but got %d",
+				n, len(p), len(keys[n]))
+		}
+
+		for i, k := range p {
+			if keys[n][i].alg.name != k.alg.name {
+				t.Errorf("Expected alg %s but got %s",
+					k.alg.name, keys[n][i].alg.name)
+			}
+			if keys[n][i].comment != k.comment {
+				t.Errorf("Expected name %s but got %s",
+					k.comment, keys[n][i].comment)
+			}
+			if keys[n][i].fingerprintMD5 != k.fingerprintMD5 {
+				t.Errorf("Expected fingerprint %s but got %s",
+					k.fingerprintMD5, keys[n][i].fingerprintMD5)
+			}
+		}
+	}
+}
+
+func TestGetAllUsers(t *testing.T) {
+	users, err := getAllUsers(getTestDirectory(t))
+	if err != nil {
+		t.Fatalf("Failed to call getAllUsers: %s", err)
+	}
+
+	parameters := []unixuser{
+		{name: "root", home: "/root"},
+		{name: "deploy", home: "/home/deploy"},
+	}
+
+	if len(users) != len(parameters) {
+		t.Fatalf("Expected %d users but got %d", 1, len(users))
+	}
+
+	for i, u := range parameters {
+		if users[i].name != u.name {
+			t.Errorf("Expected name %s but got %s", u.name, users[0].name)
+		}
+
+		if users[i].home != u.home {
+			t.Errorf("Expected home %s but got %s", u.home, users[0].home)
+		}
+	}
+}
+
+func TestParseAllLogFiles(t *testing.T) {
+	accesses, err := parseAllLogFiles(getTestDirectory(t))
+	if err != nil {
+		t.Fatal("Failed to call parseAllLogFiles")
+	}
+
+	parameters := map[string]map[string]accessSummary{
+		"deploy": {
+			"b0:3a:37:c0:99:09:b0:e4:a1:9f:9f:fb:de:18:a5:56": {
+				count:  3,
+				lastIP: net.IPv4(10, 0, 0, 1),
+			},
+		},
+		"root": {
+			"b7:32:01:5c:78:97:b1:3f:4d:bd:98:56:d0:33:61:3a": {
+				count:  1,
+				lastIP: net.IPv4(10, 0, 0, 4),
+			},
+		},
+	}
+
+	for user, submap := range parameters {
+		for fp, a := range submap {
+			if accesses[user][fp].count != a.count {
+				t.Errorf("Expected count %d but got %d", a.count, accesses[user][fp].count)
+			}
+
+			if !accesses[user][fp].lastIP.Equal(a.lastIP) {
+				t.Errorf("Expected ip %v but got %v", a.lastIP, accesses[user][fp].lastIP)
+			}
+		}
+	}
+}
+
+func TestBuildKeyTable(t *testing.T) {
+	tab, err := buildKeyTable(getTestDirectory(t))
+	if err != nil {
+		t.Fatal("Failed to call buildKeyTable")
+	}
+
+	parameters := []tableRow{
+		{
+			alg:     algorithm{name: ecdsa},
+			count:   3,
+			lastIP:  net.IPv4(10, 0, 0, 1),
+			comment: "ecdsa@example.com",
+			user:    "deploy",
+		},
+		{
+			alg:     algorithm{name: ed25519},
+			count:   1,
+			lastIP:  net.IPv4(10, 0, 0, 4),
+			comment: "test@github.com",
+			user:    "root",
+		},
+	}
+
+	if len(tab) != len(parameters) {
+		t.Fatalf("Expected %d entries in table but got %d", len(parameters),
+			len(tab))
+	}
+
+	for i, p := range parameters {
+		if tab[i].alg.name != p.alg.name {
+			t.Errorf("Expected algorithm %s but got %s", p.alg.name, tab[i].alg.name)
+		}
+
+		if tab[i].count != p.count {
+			t.Errorf("Expected count %d but got %d", p.count, tab[i].count)
+		}
+
+		if !tab[i].lastIP.Equal(p.lastIP) {
+			t.Errorf("Expected last ip %v but got %v", p.lastIP, tab[i].lastIP)
+		}
+
+		if tab[i].comment != p.comment {
+			t.Errorf("Expected name %s but got %s", p.comment, tab[i].comment)
+		}
+
+		if tab[i].user != p.user {
+			t.Errorf("Expected user %s but got %s", p.user, tab[i].user)
+		}
+	}
+}
+
+func getTestTable(t *testing.T) []tableRow {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	return []tableRow{
+		{
+			alg:               algorithm{name: ecdsa, keylen: 521},
+			count:             1,
+			lastIP:            net.IPv4(10, 0, 0, 1),
+			comment:           "ecdsa@example.com",
+			user:              "deploy",
+			lastUse:           time.Date(2017, 10, 2, 11, 22, 33, 00, utc),
+			fingerprintMD5:    "58:b4:db:ba",
+			fingerprintSHA256: "TTCk17rJoNk",
+		},
+		{
+			alg:               algorithm{name: ed25519, keylen: 256},
+			count:             0,
+			lastIP:            nil,
+			comment:           "test@github.com",
+			user:              "root",
+			lastUse:           time.Time{},
+			fingerprintMD5:    "b7:32:61:3a",
+			fingerprintSHA256: "dqk1MyiQsB4",
+		},
+	}
+}
+
+func TestPrintCSV(t *testing.T) {
+	expected := "user,comment,type,keylen,secure,last_use,count,last_ip,fingerprint_md5,fingerprint_sha256\n" +
+		"deploy,ecdsa@example.com,ECDSA,521,false,2017-10-02T11:22:33Z,1,10.0.0.1,58:b4:db:ba,TTCk17rJoNk\n" +
+		"root,test@github.com,ED25519,256,true,,0,,b7:32:61:3a,dqk1MyiQsB4\n"
+
+	var buf bytes.Buffer
+	printCSV(&buf, getTestTable(t))
+	res := buf.String()
+
+	if res != expected {
+		t.Error("CSV output was wrong")
+		t.Error(expected)
+		t.Error(res)
+	}
+}
+
+func TestPrintAlignedTable(t *testing.T) {
+	re := []string{
+		"^USER  \\s*COMMENT  \\s*TYPE  \\s*SECURITY  \\s*LAST USE  \\s*COUNT  \\s*LAST IP$",
+		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*\\d+ [a-z]+ ago  \\s*1  \\s*10.0.0.1$",
+		"^root  \\s*test@github.com  \\s*ED25519  \\s*ok  \\s*never  \\s*-  \\s*-$",
+		"^$",
+	}
+
+	var buf bytes.Buffer
+	printAlignedTable(&buf, getTestTable(t), false, false)
+	lines := strings.Split(buf.String(), "\n")
+
+	if len(lines) != len(re) {
+		t.Fatalf("Expected %d lines but got %d", len(re), len(lines))
+	}
+
+	for i, l := range lines {
+		if !regexp.MustCompile(re[i]).MatchString(l) {
+			t.Error("Aligned table output was wrong")
+			t.Error(l)
+			t.Error(re[i])
 		}
 	}
 }

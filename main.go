@@ -80,7 +80,7 @@ type tableRow struct {
 	count             int
 	fingerprintMD5    string
 	fingerprintSHA256 string
-	lastIP            string
+	lastIP            net.IP
 }
 
 var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
@@ -98,23 +98,23 @@ func main() {
 		os.Exit(0)
 	}
 
-	table, err := buildKeyTable()
+	table, err := buildKeyTable("/")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	if *csv {
-		printCSV(table)
+		printCSV(os.Stdout, table)
 	} else {
-		printAlignedTable(table, *enableFingerprintMD5, *enableFingerprintSHA256)
+		printAlignedTable(os.Stdout, table, *enableFingerprintMD5, *enableFingerprintSHA256)
 	}
 }
 
-func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFingerprintSHA256 bool) {
+func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 bool, enableFingerprintSHA256 bool) {
 	now := time.Now()
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "USER\tCOMMENT\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
 	if enableFingerprintMD5 {
 		fmt.Fprintf(w, "\tFINGERPRINT-MD5")
@@ -129,7 +129,7 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 		if row.count > 0 {
 			lastUseStr = durationAsString(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
-			lastIPStr = row.lastIP
+			lastIPStr = row.lastIP.String()
 		} else {
 			lastUseStr = "never"
 			countStr = "    -"
@@ -161,8 +161,8 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 	w.Flush()
 }
 
-func printCSV(table []tableRow) {
-	w := csv.NewWriter(os.Stdout)
+func printCSV(out io.Writer, table []tableRow) {
+	w := csv.NewWriter(out)
 	w.Write([]string{
 		"user",
 		"comment",
@@ -178,9 +178,11 @@ func printCSV(table []tableRow) {
 
 	for _, row := range table {
 		lastUseStr := ""
+		lastIPStr := ""
 		if row.count > 0 {
 			// if the key was never used, the timestamp should not be printed
 			lastUseStr = row.lastUse.Format(time.RFC3339)
+			lastIPStr = row.lastIP.String()
 		}
 		w.Write([]string{
 			row.user,
@@ -190,7 +192,7 @@ func printCSV(table []tableRow) {
 			strconv.FormatBool(!row.alg.isInsecure()),
 			lastUseStr,
 			strconv.Itoa(row.count),
-			row.lastIP,
+			lastIPStr,
 			row.fingerprintMD5,
 			row.fingerprintSHA256,
 		})
@@ -199,7 +201,7 @@ func printCSV(table []tableRow) {
 	w.Flush()
 }
 
-func buildKeyTable() ([]tableRow, error) {
+func buildKeyTable(prefix string) ([]tableRow, error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -209,11 +211,11 @@ func buildKeyTable() ([]tableRow, error) {
 
 	// Execute log file parsing and collecting authorized keys in parallel
 	go func() {
-		allKeys, allKeysErr = getAuthorizedKeysForAllUsers()
+		allKeys, allKeysErr = getAuthorizedKeysForAllUsers(prefix)
 		wg.Done()
 	}()
 	go func() {
-		allLogs, allLogsErr = parseAllLogFiles()
+		allLogs, allLogsErr = parseAllLogFiles(prefix)
 		wg.Done()
 	}()
 
@@ -249,7 +251,7 @@ func buildKeyTable() ([]tableRow, error) {
 				count:             summary.count,
 				fingerprintMD5:    key.fingerprintMD5,
 				fingerprintSHA256: key.fingerprintSHA256,
-				lastIP:            summary.lastIP.String(),
+				lastIP:            summary.lastIP,
 			})
 		}
 	}
@@ -396,8 +398,7 @@ func splitPubkey(pubkey []byte) (string, []int) {
 	var partLengths []int
 	for {
 		var length int32
-		err := binary.Read(buf, binary.BigEndian, &length)
-		if err != nil {
+		if err := binary.Read(buf, binary.BigEndian, &length); err != nil {
 			break
 		}
 
@@ -514,8 +515,8 @@ func parseAllUsers(file io.Reader) ([]unixuser, error) {
 	return users, nil
 }
 
-func getAllUsers() ([]unixuser, error) {
-	file, err := os.Open("/etc/passwd")
+func getAllUsers(prefix string) ([]unixuser, error) {
+	file, err := os.Open(path.Join(prefix, "etc", "passwd"))
 	if err != nil {
 		return nil, err
 	}
@@ -526,8 +527,8 @@ func getAllUsers() ([]unixuser, error) {
 
 // Opens ~/.ssh/authorized_keys for all users and returns
 // every key parsed into algorithm, key and name in a map.
-func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
-	users, err := getAllUsers()
+func getAuthorizedKeysForAllUsers(prefix string) (map[string][]publickey, error) {
+	users, err := getAllUsers(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +543,7 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 			defer wg.Done()
 
 			// open ~/.ssh/authorized_keys
-			file, err := os.Open(path.Join(user.home, ".ssh", "authorized_keys"))
+			file, err := os.Open(path.Join(prefix, user.home, ".ssh", "authorized_keys"))
 			if err != nil {
 				return
 			}
@@ -592,8 +593,8 @@ func durationAsString(dur time.Duration) string {
 	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
-func parseAllLogFiles() (logSummary, error) {
-	allfiles, err := filepath.Glob("/var/log/auth.log*")
+func parseAllLogFiles(prefix string) (logSummary, error) {
+	allfiles, err := filepath.Glob(path.Join(prefix, "/var/log/auth.log*"))
 	if err != nil {
 		return nil, err
 	}

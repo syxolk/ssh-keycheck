@@ -1,0 +1,9 @@
+Oct  2 10:12:01 v1234 sshd[2235]: Connection from 10.0.0.10 port 45096 on 127.0.0.1 port 22
+Oct  2 10:12:01 v1234 sshd[2235]: Accepted publickey for deploy from 10.0.0.10 port 45096 ssh2: RSA b0:3a:37:c0:99:09:b0:e4:a1:9f:9f:fb:de:18:a5:56
+Oct  2 12:41:08 v1234 sshd[2127]: Connection from 10.0.0.2 port 60681 on 127.0.0.1 port 22
+Oct  2 12:41:09 v1234 sshd[2127]: Received disconnect from 10.0.0.2: 11:  [preauth]
+Oct  2 12:42:01 v1234 CRON[2128]: pam_unix(cron:session): session opened for user deploy by (uid=0)
+Oct  2 12:42:04 v1234 CRON[2128]: pam_unix(cron:session): session closed for user deploy
+Oct  2 14:51:28 v1234 sshd[2236]: Connection from 10.0.0.1 port 45096 on 127.0.0.1 port 22
+Oct  2 14:51:28 v1234 sshd[2236]: Postponed publickey for deploy from 10.0.0.1 port 45096 ssh2 [preauth]
+Oct  2 14:51:28 v1234 sshd[2236]: Accepted publickey for deploy from 10.0.0.1 port 45096 ssh2: RSA b0:3a:37:c0:99:09:b0:e4:a1:9f:9f:fb:de:18:a5:56
