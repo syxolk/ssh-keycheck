@@ -257,10 +257,10 @@ func buildKeyTable() ([]tableRow, error) {
 // Parse the given stream and return a list of keys, splitted into
 // algorithm, pubkey and name.
 // Invalid lines are ignored.
-func parseAuthorizedKeys(file *io.Reader) ([]publickey, error) {
+func parseAuthorizedKeys(file io.Reader) ([]publickey, error) {
 	// Every public key is in its own line
 	var keys []publickey
-	scanner := bufio.NewScanner(*file)
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		splits := strings.SplitN(scanner.Text(), " ", 3)
 		if len(splits) != 3 {
@@ -485,10 +485,10 @@ func parseLogLine(year int, location *time.Location, line string) (access, bool)
 }
 
 // Read /etc/passwd and return all users and their corresponding home directory
-func parseAllUsers(file *io.Reader) ([]unixuser, error) {
+func parseAllUsers(file io.Reader) ([]unixuser, error) {
 	var users []unixuser
 
-	scanner := bufio.NewScanner(*file)
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fs := strings.Split(scanner.Text(), ":")
 		if len(fs) != 7 {
@@ -510,8 +510,7 @@ func getAllUsers() ([]unixuser, error) {
 	}
 	defer file.Close()
 
-	var reader io.Reader = file
-	return parseAllUsers(&reader)
+	return parseAllUsers(file)
 }
 
 // Opens ~/.ssh/authorized_keys for all users and returns
@@ -538,8 +537,7 @@ func getAuthorizedKeysForAllUsers() (map[string][]publickey, error) {
 			}
 			defer file.Close()
 
-			var reader io.Reader = file
-			userkeys, err := parseAuthorizedKeys(&reader)
+			userkeys, err := parseAuthorizedKeys(file)
 			if err != nil {
 				return
 			}

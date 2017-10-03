@@ -116,7 +116,7 @@ func TestParseAuthorizedKeys(t *testing.T) {
 		"ssh-rsa INVALIDKEY"
 
 	var reader io.Reader = strings.NewReader(authorizedKeys)
-	keys, err := parseAuthorizedKeys(&reader)
+	keys, err := parseAuthorizedKeys(reader)
 
 	if err != nil {
 		t.Fatalf("Failed with error: %s", err)
@@ -156,7 +156,7 @@ func TestParseAllUsers(t *testing.T) {
 		"hans:x:1000:1000:Hans,,,:/home/hans:/usr/bin/zsh"
 
 	var reader io.Reader = strings.NewReader(passwd)
-	users, err := parseAllUsers(&reader)
+	users, err := parseAllUsers(reader)
 
 	if err != nil {
 		t.Fatalf("Failed with error: %s", err)
