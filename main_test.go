@@ -290,7 +290,7 @@ func TestMergeLogs(t *testing.T) {
 		t.Fatal("Could not load UTC")
 	}
 
-	target := map[string]map[string]accessSummary{
+	target := logSummary{
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),
@@ -305,7 +305,7 @@ func TestMergeLogs(t *testing.T) {
 		},
 	}
 
-	source := map[string]map[string]accessSummary{
+	source := logSummary{
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 12, 12, 0, 0, 0, utc),
@@ -327,7 +327,7 @@ func TestMergeLogs(t *testing.T) {
 		},
 	}
 
-	expectedTarget := map[string]map[string]accessSummary{
+	expectedTarget := logSummary{
 		"root": {
 			"aa:bb": accessSummary{
 				lastUse: time.Date(2017, 9, 23, 12, 0, 0, 0, utc),

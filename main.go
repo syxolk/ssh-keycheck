@@ -62,6 +62,9 @@ type accessSummary struct {
 	count   int
 }
 
+// Map of user names to a map of fingerprints to accessSummary
+type logSummary map[string]map[string]accessSummary
+
 type access struct {
 	user        string
 	fingerprint string
@@ -201,7 +204,7 @@ func buildKeyTable() ([]tableRow, error) {
 	wg.Add(2)
 
 	var allKeys map[string][]publickey
-	var allLogs map[string]map[string]accessSummary
+	var allLogs logSummary
 	var allKeysErr, allLogsErr error
 
 	// Execute log file parsing and collecting authorized keys in parallel
@@ -407,7 +410,7 @@ func splitPubkey(pubkey []byte) (string, []int) {
 
 // Parse a log file written by sshd and return all logs with accepted logins
 // using an ssh key
-func parseLogFile(path string) (map[string]map[string]accessSummary, error) {
+func parseLogFile(path string) (logSummary, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -434,7 +437,7 @@ func parseLogFile(path string) (map[string]map[string]accessSummary, error) {
 		scanner = bufio.NewScanner(file)
 	}
 
-	logs := make(map[string]map[string]accessSummary)
+	logs := make(logSummary)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -581,13 +584,13 @@ func durationAsString(dur time.Duration) string {
 	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
-func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
+func parseAllLogFiles() (logSummary, error) {
 	allfiles, err := filepath.Glob("/var/log/auth.log*")
 	if err != nil {
 		return nil, err
 	}
 
-	allLogs := make(map[string]map[string]accessSummary)
+	allLogs := make(logSummary)
 	var lastError error
 
 	var mut sync.Mutex
@@ -617,7 +620,7 @@ func parseAllLogFiles() (map[string]map[string]accessSummary, error) {
 	return allLogs, nil
 }
 
-func mergeLogs(target map[string]map[string]accessSummary, source map[string]map[string]accessSummary) {
+func mergeLogs(target logSummary, source logSummary) {
 	for user, submap := range source {
 		if target[user] == nil {
 			target[user] = make(map[string]accessSummary)
