@@ -201,6 +201,8 @@ func printCSV(out io.Writer, table []tableRow) {
 	w.Flush()
 }
 
+// Get all logs and authorized keys and combine them to a single table structure.
+// This function queries authorized keys and logs in parallel.
 func buildKeyTable(prefix string) ([]tableRow, error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -475,6 +477,11 @@ func parseLogFile(path string) (logSummary, error) {
 	return logs, nil
 }
 
+// Parse a line from an /var/log/auth.log* file and returns either an
+// access object and true if successfully parsed or an empty object and false
+// if the line could not be parsed.
+// Since sshd does not log the year or timezone it must be given by parameter
+// in order to parse the timestamp.
 func parseLogLine(year int, location *time.Location, line string) (access, bool) {
 	if !strings.Contains(line, "Accepted publickey for") {
 		return access{}, false
@@ -515,6 +522,7 @@ func parseAllUsers(file io.Reader) ([]unixuser, error) {
 	return users, nil
 }
 
+// Wrapper around parseAllUsers that reads from /etc/passwd
 func getAllUsers(prefix string) ([]unixuser, error) {
 	file, err := os.Open(path.Join(prefix, "etc", "passwd"))
 	if err != nil {
@@ -527,6 +535,7 @@ func getAllUsers(prefix string) ([]unixuser, error) {
 
 // Opens ~/.ssh/authorized_keys for all users and returns
 // every key parsed into algorithm, key and name in a map.
+// This function is parallelized on all authorized_keys files.
 func getAuthorizedKeysForAllUsers(prefix string) (map[string][]publickey, error) {
 	users, err := getAllUsers(prefix)
 	if err != nil {
@@ -565,6 +574,12 @@ func getAuthorizedKeysForAllUsers(prefix string) (map[string][]publickey, error)
 	return keys, nil
 }
 
+// Format a duration as human-readable text relative to now in past tense.
+// Returns "just now" if the duration is below one second.
+// Returns "x second(s) ago" if the duration is below a minute.
+// Returns "x minute(s) ago" if the duration is below an hour.
+// Returns "x hour(s) ago" if the duration is below one day.
+// Otherwise returns "x day(s) ago".
 func durationAsString(dur time.Duration) string {
 	var count int
 	var unit string
@@ -593,8 +608,11 @@ func durationAsString(dur time.Duration) string {
 	return fmt.Sprintf("%d %s ago", count, unit)
 }
 
+// Gets all files named /var/log/auth.log*, calls parseLogFile on each file
+// and merges the results with mergeLogs.
+// This function is parallelized on all auth.log* files.
 func parseAllLogFiles(prefix string) (logSummary, error) {
-	allfiles, err := filepath.Glob(path.Join(prefix, "/var/log/auth.log*"))
+	allfiles, err := filepath.Glob(path.Join(prefix, "var", "log", "auth.log*"))
 	if err != nil {
 		return nil, err
 	}
@@ -629,6 +647,10 @@ func parseAllLogFiles(prefix string) (logSummary, error) {
 	return allLogs, nil
 }
 
+// Takes two logSummary structures and merges everything from source into target.
+// For the same user and fingerprint, the counts are summed up and the last
+// use and last ip are overwritten in target if the last use in source
+// happened later.
 func mergeLogs(target logSummary, source logSummary) {
 	for user, submap := range source {
 		if target[user] == nil {
@@ -656,6 +678,7 @@ func (alg *algorithm) isInsecure() bool {
 		(alg.name == rsa && alg.keylen < 2048)
 }
 
+// Return a string representation of the given algorithm type.
 func (name algorithmType) String() string {
 	switch name {
 	case rsa:
