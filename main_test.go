@@ -126,9 +126,9 @@ func TestParseAuthorizedKeys(t *testing.T) {
 		t.Fatalf("Expected %d but got %d keys", 1, len(keys))
 	}
 
-	if keys[0].name != "syxolk@github.com" {
+	if keys[0].comment != "syxolk@github.com" {
 		t.Errorf("Expected name %s but got %s", "syxolk@github.com",
-			keys[0].name)
+			keys[0].comment)
 	}
 
 	if keys[0].alg.name != rsa {

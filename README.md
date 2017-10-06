@@ -31,7 +31,7 @@ Please inform yourself about [setuid](https://en.wikipedia.org/wiki/Setuid) befo
 Usage of ssh-keycheck:
   -csv
         Print table as CSV (RFC 4180) using RFC 3339 for dates
-  -fingerprint
+  -fingerprint-md5
         Show fingerprint (MD5) column
   -fingerprint-sha256
         Show fingerprint (SHA256) column
@@ -41,8 +41,8 @@ Usage of ssh-keycheck:
 
 ```
 ~$ ssh-keycheck
-USER  NAME              TYPE      SECURITY  LAST USE       COUNT  LAST IP
-root  rsa-key-20170101  RSA-4096  -         never              -  -
+USER  COMMENT           TYPE      SECURITY  LAST USE       COUNT  LAST IP
+root  rsa-key-20170101  RSA-4096  ok        never              -  -
 root  rsa-key-20170102  DSA       insecure  9 minutes ago      3  10.0.0.10
 ```
 

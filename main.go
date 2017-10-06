@@ -48,7 +48,7 @@ type publickey struct {
 	alg               algorithm
 	fingerprintMD5    string
 	fingerprintSHA256 string
-	name              string
+	comment           string
 }
 
 type unixuser struct {
@@ -74,7 +74,7 @@ type access struct {
 
 type tableRow struct {
 	user              string
-	name              string
+	comment           string
 	alg               algorithm
 	lastUse           time.Time
 	count             int
@@ -88,7 +88,7 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 
 func main() {
 	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
-	enableFingerprintMD5 := flag.Bool("fingerprint", false, "Show fingerprint (MD5) column")
+	enableFingerprintMD5 := flag.Bool("fingerprint-md5", false, "Show fingerprint (MD5) column")
 	enableFingerprintSHA256 := flag.Bool("fingerprint-sha256", false, "Show fingerprint (SHA256) column")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
@@ -115,7 +115,7 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 	now := time.Now()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "USER\tNAME\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
+	fmt.Fprintf(w, "USER\tCOMMENT\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
 	if enableFingerprintMD5 {
 		fmt.Fprintf(w, "\tFINGERPRINT-MD5")
 	}
@@ -147,7 +147,7 @@ func printAlignedTable(table []tableRow, enableFingerprintMD5 bool, enableFinger
 		} else {
 			insecureStr = "ok"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.name,
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.comment,
 			algStr, insecureStr, lastUseStr, countStr, lastIPStr)
 		if enableFingerprintMD5 {
 			fmt.Fprintf(w, "\t%s", row.fingerprintMD5)
@@ -165,14 +165,14 @@ func printCSV(table []tableRow) {
 	w := csv.NewWriter(os.Stdout)
 	w.Write([]string{
 		"user",
-		"name",
+		"comment",
 		"type",
 		"keylen",
-		"insecure",
-		"lastuse",
+		"secure",
+		"last_use",
 		"count",
-		"lastip",
-		"fingerprint",
+		"last_ip",
+		"fingerprint_md5",
 		"fingerprint_sha256",
 	})
 
@@ -184,10 +184,10 @@ func printCSV(table []tableRow) {
 		}
 		w.Write([]string{
 			row.user,
-			row.name,
+			row.comment,
 			row.alg.name.String(),
 			strconv.Itoa(row.alg.keylen),
-			strconv.FormatBool(row.alg.isInsecure()),
+			strconv.FormatBool(!row.alg.isInsecure()),
 			lastUseStr,
 			strconv.Itoa(row.count),
 			row.lastIP,
@@ -243,7 +243,7 @@ func buildKeyTable() ([]tableRow, error) {
 
 			table = append(table, tableRow{
 				user:              user,
-				name:              key.name,
+				comment:           key.comment,
 				alg:               key.alg,
 				lastUse:           summary.lastUse,
 				count:             summary.count,
@@ -282,7 +282,7 @@ func parseAuthorizedKeys(file io.Reader) ([]publickey, error) {
 			alg:               parseKeyType(pubkey),
 			fingerprintMD5:    fingerprintMD5(pubkey),
 			fingerprintSHA256: fingerprintSHA256(pubkey),
-			name:              splits[2],
+			comment:           splits[2],
 		})
 	}
 	if err := scanner.Err(); err != nil {
