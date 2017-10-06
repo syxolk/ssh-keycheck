@@ -265,7 +265,15 @@ func parseAuthorizedKeys(file io.Reader) ([]publickey, error) {
 	var keys []publickey
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		splits := strings.SplitN(scanner.Text(), " ", 3)
+		line := scanner.Text()
+
+		// Lines starting with '#' and empty lines are ignored as comments.
+		// http://man.he.net/man5/authorized_keys
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		splits := strings.SplitN(line, " ", 3)
 		if len(splits) != 3 {
 			continue
 		}

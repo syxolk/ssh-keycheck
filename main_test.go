@@ -113,7 +113,9 @@ func TestComputeFingerprint(t *testing.T) {
 
 func TestParseAuthorizedKeys(t *testing.T) {
 	authorizedKeys := "ssh-rsa " + pubkeyRsa4096 + " syxolk@github.com\n" +
-		"ssh-rsa INVALIDKEY"
+		"ssh-rsa INVALIDKEY\n" +
+		"\n" + // empty line
+		"# Comment line\n"
 
 	var reader io.Reader = strings.NewReader(authorizedKeys)
 	keys, err := parseAuthorizedKeys(reader)
