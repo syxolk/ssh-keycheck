@@ -402,6 +402,10 @@ func TestAlgorithmTypeString(t *testing.T) {
 			t.Errorf("Expected algorithm name but got '%s'", s)
 		}
 	}
+
+	if unknownAlgorithm.String() != "[unknown]" {
+		t.Errorf("Expected %s but got %s", "[unknown]", unknownAlgorithm.String())
+	}
 }
 
 func getTestDirectory(t *testing.T) string {
@@ -644,7 +648,32 @@ func TestPrintAlignedTable(t *testing.T) {
 
 	for i, l := range lines {
 		if !regexp.MustCompile(re[i]).MatchString(l) {
-			t.Error("Aligned table output was wrong")
+			t.Errorf("Aligned table output was wrong in line %d", i+1)
+			t.Error(l)
+			t.Error(re[i])
+		}
+	}
+}
+
+func TestPrintAlignedTableFingerprints(t *testing.T) {
+	re := []string{
+		"^USER  \\s*COMMENT  \\s*TYPE  \\s*SECURITY  \\s*LAST USE  \\s*COUNT  \\s*LAST IP  \\s*FINGERPRINT-MD5  \\s*FINGERPRINT-SHA256$",
+		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*\\d+ [a-z]+ ago  \\s*1  \\s*10.0.0.1  \\s*58:b4:db:ba  \\s*TTCk17rJoNk$",
+		"^root  \\s*test@github.com  \\s*ED25519  \\s*ok  \\s*never  \\s*-  \\s*-  \\s*b7:32:61:3a  \\s*dqk1MyiQsB4$",
+		"^$",
+	}
+
+	var buf bytes.Buffer
+	printAlignedTable(&buf, getTestTable(t), true, true)
+	lines := strings.Split(buf.String(), "\n")
+
+	if len(lines) != len(re) {
+		t.Fatalf("Expected %d lines but got %d", len(re), len(lines))
+	}
+
+	for i, l := range lines {
+		if !regexp.MustCompile(re[i]).MatchString(l) {
+			t.Errorf("Aligned table output was wrong in line %d", i+1)
 			t.Error(l)
 			t.Error(re[i])
 		}
