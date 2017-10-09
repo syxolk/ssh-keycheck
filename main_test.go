@@ -362,10 +362,10 @@ func TestMergeLogs(t *testing.T) {
 	}
 }
 
-func TestIsInsecure(t *testing.T) {
+func TestIsSecure(t *testing.T) {
 	parameters := []struct {
-		pubkey   string
-		insecure bool
+		pubkey string
+		secure bool
 	}{
 		{pubkeyRsa1024, false},
 		{pubkeyRsa2048, true},
@@ -385,9 +385,9 @@ func TestIsInsecure(t *testing.T) {
 		}
 
 		c := parseKeyType(k)
-		insecure := c.isSecure()
-		if insecure != p.insecure {
-			t.Errorf("Expected %t but got %t for %s-%d", p.insecure, insecure,
+		secure := c.isSecure()
+		if secure != p.secure {
+			t.Errorf("Expected %t but got %t for %s-%d", p.secure, secure,
 				c.name, c.keylen)
 		}
 	}
