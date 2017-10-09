@@ -367,14 +367,14 @@ func TestIsInsecure(t *testing.T) {
 		pubkey   string
 		insecure bool
 	}{
-		{pubkeyRsa1024, true},
-		{pubkeyRsa2048, false},
-		{pubkeyRsa4096, false},
-		{pubkeyDsa, true},
-		{pubkeyEcdsa256, true},
-		{pubkeyEcdsa384, true},
-		{pubkeyEcdsa521, true},
-		{pubkeyEd25519, false},
+		{pubkeyRsa1024, false},
+		{pubkeyRsa2048, true},
+		{pubkeyRsa4096, true},
+		{pubkeyDsa, false},
+		{pubkeyEcdsa256, false},
+		{pubkeyEcdsa384, false},
+		{pubkeyEcdsa521, false},
+		{pubkeyEd25519, true},
 	}
 
 	for _, p := range parameters {
@@ -385,7 +385,7 @@ func TestIsInsecure(t *testing.T) {
 		}
 
 		c := parseKeyType(k)
-		insecure := c.isInsecure()
+		insecure := c.isSecure()
 		if insecure != p.insecure {
 			t.Errorf("Expected %t but got %t for %s-%d", p.insecure, insecure,
 				c.name, c.keylen)

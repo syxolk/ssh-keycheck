@@ -142,10 +142,10 @@ func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 boo
 			// DSA and ED25519 have fixed key lengths
 			algStr = row.alg.name.String()
 		}
-		if row.alg.isInsecure() {
-			insecureStr = "insecure"
-		} else {
+		if row.alg.isSecure() {
 			insecureStr = "ok"
+		} else {
+			insecureStr = "insecure"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.comment,
 			algStr, insecureStr, lastUseStr, countStr, lastIPStr)
@@ -189,7 +189,7 @@ func printCSV(out io.Writer, table []tableRow) {
 			row.comment,
 			row.alg.name.String(),
 			strconv.Itoa(row.alg.keylen),
-			strconv.FormatBool(!row.alg.isInsecure()),
+			strconv.FormatBool(row.alg.isSecure()),
 			lastUseStr,
 			strconv.Itoa(row.count),
 			lastIPStr,
@@ -668,14 +668,14 @@ func mergeLogs(target logSummary, source logSummary) {
 	}
 }
 
-// Checks if the algorithm is discouraged to be used
+// Checks if the algorithm is safe to be used
 // DSA: https://www.gentoo.org/support/news-items/2015-08-13-openssh-weak-keys.html
 // RSA: https://www.keylength.com/en/4/
 // ECDSA: https://wiki.archlinux.org/index.php/SSH_keys#ECDSA
-func (alg *algorithm) isInsecure() bool {
-	return alg.name == dsa ||
+func (alg *algorithm) isSecure() bool {
+	return !(alg.name == dsa ||
 		alg.name == ecdsa ||
-		(alg.name == rsa && alg.keylen < 2048)
+		(alg.name == rsa && alg.keylen < 2048))
 }
 
 // Return a string representation of the given algorithm type.
