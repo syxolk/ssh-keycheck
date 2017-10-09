@@ -244,7 +244,73 @@ func TestParseKeyType(t *testing.T) {
 			t.Errorf("Expected %s keylen %d but got %d", p.name, p.keylen, c.keylen)
 		}
 	}
+}
 
+func TestSplitPubkey(t *testing.T) {
+	parameters := []struct {
+		pubkey      string
+		firstPart   string
+		partLengths []int
+	}{
+		{
+			pubkey:      pubkeyRsa1024,
+			firstPart:   "ssh-rsa",
+			partLengths: []int{7, 3, 129},
+		},
+		{
+			pubkey:      pubkeyRsa2048,
+			firstPart:   "ssh-rsa",
+			partLengths: []int{7, 3, 257},
+		},
+		{
+			pubkey:      pubkeyRsa4096,
+			firstPart:   "ssh-rsa",
+			partLengths: []int{7, 3, 513},
+		},
+		{
+			pubkey:      pubkeyDsa,
+			firstPart:   "ssh-dss",
+			partLengths: []int{7, 129, 21, 129, 129},
+		},
+		{
+			pubkey:      pubkeyEd25519,
+			firstPart:   "ssh-ed25519",
+			partLengths: []int{11, 32},
+		},
+		{
+			pubkey:      pubkeyEcdsa256,
+			firstPart:   "ecdsa-sha2-nistp256",
+			partLengths: []int{19, 8, 65},
+		},
+		{
+			pubkey:      pubkeyEcdsa384,
+			firstPart:   "ecdsa-sha2-nistp384",
+			partLengths: []int{19, 8, 97},
+		},
+		{
+			pubkey:      pubkeyEcdsa521,
+			firstPart:   "ecdsa-sha2-nistp521",
+			partLengths: []int{19, 8, 133},
+		},
+	}
+
+	for _, p := range parameters {
+		k, err := base64.StdEncoding.DecodeString(p.pubkey)
+		if err != nil {
+			t.Errorf("Could not decode pubkey %s", p.pubkey)
+			continue
+		}
+
+		f, l := splitPubkey(k)
+
+		if f != p.firstPart {
+			t.Errorf("Expected first part %s but got %s", p.firstPart, f)
+		}
+
+		if !reflect.DeepEqual(l, p.partLengths) {
+			t.Errorf("Expected part lengths %v but got %v", p.partLengths, l)
+		}
+	}
 }
 
 func TestParseLogLine(t *testing.T) {
