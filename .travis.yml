@@ -1,8 +1,8 @@
 sudo: false
 language: go
 go:
-  - 1.8
-  - 1.9
+  - 1.8.4
+  - 1.9.1
 
 script: make test && make
 
@@ -18,4 +18,4 @@ deploy:
   on:
     repo: syxolk/ssh-keycheck
     tags: true
-    go: 1.9
+    go: 1.9.1
