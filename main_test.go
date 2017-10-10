@@ -14,6 +14,48 @@ import (
 	"time"
 )
 
+const pubkeyRsa16384 = "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"
+const fingerprintRsa16384 = "56:ac:d9:51:a3:be:81:f7:ff:d4:e7:1e:31:8e:d0:f8"
+const fingerprintSHA256Rsa16384 = "SXoq5sXzO4Q25aXLn731nTsqfCfex9dGpQqKyK6n2G0"
+
 const pubkeyRsa8192 = "AAAAB3NzaC1yc2EAAAADAQABAAAEAQClXvfjnQzDypAXyPGPKf0UXT" +
 	"2NRhsOBlXAnezYCtqcWjwhYC6ZRFMgR78r9piebK/Y9/fg+YTuaiAF8aHiFJ8jI/mBzZui47" +
 	"hGHpDyPlSaBRWqWsuD6vze+LnHasIPKtx1AQAsW9ZOXHXAICwkNEeJV+fS1Kfrad6UqIXKP/" +
@@ -113,6 +155,7 @@ func TestComputeFingerprint(t *testing.T) {
 		{pubkeyRsa2048, fingerprintRsa2048, fingerprintSHA256Rsa2048},
 		{pubkeyRsa4096, fingerprintRsa4096, fingerprintSHA256Rsa4096},
 		{pubkeyRsa8192, fingerprintRsa8192, fingerprintSHA256Rsa8192},
+		{pubkeyRsa16384, fingerprintRsa16384, fingerprintSHA256Rsa16384},
 		{pubkeyDsa, fingerprintDsa, fingerprintSHA256Dsa},
 		{pubkeyEcdsa256, fingerprintEcdsa256, fingerprintSHA256Ecdsa256},
 		{pubkeyEcdsa384, fingerprintEcdsa384, fingerprintSHA256Ecdsa384},
@@ -247,6 +290,7 @@ func TestParseKeyType(t *testing.T) {
 		{pubkeyRsa2048, rsa, 2048},
 		{pubkeyRsa4096, rsa, 4096},
 		{pubkeyRsa8192, rsa, 8192},
+		{pubkeyRsa16384, rsa, 16384},
 		{pubkeyDsa, dsa, 1024},
 		{pubkeyEcdsa256, ecdsa, 256},
 		{pubkeyEcdsa384, ecdsa, 384},
@@ -296,6 +340,11 @@ func TestSplitPubkey(t *testing.T) {
 			pubkey:      pubkeyRsa8192,
 			firstPart:   "ssh-rsa",
 			partLengths: []int{7, 3, 1025},
+		},
+		{
+			pubkey:      pubkeyRsa16384,
+			firstPart:   "ssh-rsa",
+			partLengths: []int{7, 3, 2049},
 		},
 		{
 			pubkey:      pubkeyDsa,
@@ -467,6 +516,7 @@ func TestIsSecure(t *testing.T) {
 		{pubkeyRsa2048, true},
 		{pubkeyRsa4096, true},
 		{pubkeyRsa8192, true},
+		{pubkeyRsa16384, true},
 		{pubkeyDsa, false},
 		{pubkeyEcdsa256, false},
 		{pubkeyEcdsa384, false},
