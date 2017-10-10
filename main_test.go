@@ -14,6 +14,29 @@ import (
 	"time"
 )
 
+const pubkeyRsa8192 = "AAAAB3NzaC1yc2EAAAADAQABAAAEAQClXvfjnQzDypAXyPGPKf0UXT" +
+	"2NRhsOBlXAnezYCtqcWjwhYC6ZRFMgR78r9piebK/Y9/fg+YTuaiAF8aHiFJ8jI/mBzZui47" +
+	"hGHpDyPlSaBRWqWsuD6vze+LnHasIPKtx1AQAsW9ZOXHXAICwkNEeJV+fS1Kfrad6UqIXKP/" +
+	"sSjO0yVeAiivClOnqL2vxkDVfA1B2OicJ3nf2g+GY8EA4ZjQZ1PXBTY4G+zSivNqQMM8k3Dy" +
+	"8uz/0q8pU2kjirHqZFdo6NQItwpQZqxq7zYUY2wc30i6q9ejbD5BSurabg8WcTjlGamkv7Or" +
+	"l+ldH0CVEyBp6IgWyq97dI08v9BTUS+VXgrDctpGMnXFFqR3TGrKztinJy2Rt6aQOCowtWEv" +
+	"BJZ7ijzOnybeHUGaIF1U30fSahoZcbVYIpplJOA0oay53pjTCbzi1Kj4J9PGYDzH7DybGQpk" +
+	"p/bYYeMsDXIZEp9yxvnSdB7HnbQMSRpaqr0ETva7ikoAoHjC9bYHcT0rZAHDiZ5JulO71CeD" +
+	"bSx9HjeFY5I8xJ+x3wquQlXxuI9upylPi+lZuHGF+wHoxJFyDEc8VggNLb6lVAePyw9962wm" +
+	"Z6vD13NuCqNz7POCWZIHDX+56C7n42Wc/MnK5UFwkVXHEUcxM6dpAc92tRUKV9BMPSZMQ2E5" +
+	"cvN0JuVmRfs6k4LsAkiW3HHzoEhZRBVgeDSc3kbI+Tjf6fxTnon1QQB9z3Aqj5dg6/qcaOkk" +
+	"/PI8G18zkouzGI+kh3u8Zh09wPRNDzLSoSSqsYdMPdenQS2F8x0EY5b76ETkhHRvC0MCpTBG" +
+	"oKNRBf1Q3wBR5TK+RBnEsN5KxMKscLD2MZU9/w/oJTX+L3i3fWPZ6VVnnf3GRvOQ0rQ5P0k7" +
+	"1uTn2P7Dr+DMTljVs55X//476dGUthDp4W4iuWBdaJjBTWqrd84l3s9MFXiUxU/Q1ruiGhdR" +
+	"SSBxbAHc0BT+bG5XJvdkgWw7OXH1RzADPLS+fQbdiPCADKCNPabYJ6Cub7RLdZpXKgo9wGZN" +
+	"6NB7owu1/vk6NGjmBBAQN9oKyw9QNbOb80EAcWwnqiOkFrHwSVjePKbX/snn2v6felI4w9DG" +
+	"RVfM2w/lVbed9+UttO4pacACc5cvko7KzxdvGNSU5c7jluphbVeYvvoal3wXxDL03SB97xiU" +
+	"ngwQORQ7IF1Tnssui84SjFAZIz8P9tnnAkpXSXpQGwtQ8MTXXsLn2O7WPysven/3AZ8nGDom" +
+	"rQQiifkNJSlqS3zzX/E3hyxNnuSgWg589j3yFYMoYG6lWenxTfxnSfZd4AFpd001nlzcOUNo" +
+	"NoAxDqzPAD3yAXxQXit+WLAJwvD/TkapyvM00m9dFs0wml"
+const fingerprintRsa8192 = "10:c5:c8:05:85:5e:ab:6f:59:89:f2:0b:13:59:3c:b0"
+const fingerprintSHA256Rsa8192 = "TqCqMeG1d0k2cR95vW0FAHkb6RtHgdq6aWyDPSyZFis"
+
 const pubkeyRsa4096 = "AAAAB3NzaC1yc2EAAAADAQABAAACAQDDn9gf8cu+t4cyPw5MBhw811" +
 	"s8p1GR4XGRV+ysnIOUl/bzSMcgXKpxPAASEhtBF9MfGaPongDNvQUHS5L83EUXJyF742BjDp" +
 	"eVMhx2cz5nGJcdOtFMyZGmCnNQMPv33j8bUvLm37Klj6KR1uHBfsxz127nlSWBVAGcI1ZaxB" +
@@ -89,6 +112,7 @@ func TestComputeFingerprint(t *testing.T) {
 		{pubkeyRsa1024, fingerprintRsa1024, fingerprintSHA256Rsa1024},
 		{pubkeyRsa2048, fingerprintRsa2048, fingerprintSHA256Rsa2048},
 		{pubkeyRsa4096, fingerprintRsa4096, fingerprintSHA256Rsa4096},
+		{pubkeyRsa8192, fingerprintRsa8192, fingerprintSHA256Rsa8192},
 		{pubkeyDsa, fingerprintDsa, fingerprintSHA256Dsa},
 		{pubkeyEcdsa256, fingerprintEcdsa256, fingerprintSHA256Ecdsa256},
 		{pubkeyEcdsa384, fingerprintEcdsa384, fingerprintSHA256Ecdsa384},
@@ -222,6 +246,7 @@ func TestParseKeyType(t *testing.T) {
 		{pubkeyRsa1024, rsa, 1024},
 		{pubkeyRsa2048, rsa, 2048},
 		{pubkeyRsa4096, rsa, 4096},
+		{pubkeyRsa8192, rsa, 8192},
 		{pubkeyDsa, dsa, 1024},
 		{pubkeyEcdsa256, ecdsa, 256},
 		{pubkeyEcdsa384, ecdsa, 384},
@@ -266,6 +291,11 @@ func TestSplitPubkey(t *testing.T) {
 			pubkey:      pubkeyRsa4096,
 			firstPart:   "ssh-rsa",
 			partLengths: []int{7, 3, 513},
+		},
+		{
+			pubkey:      pubkeyRsa8192,
+			firstPart:   "ssh-rsa",
+			partLengths: []int{7, 3, 1025},
 		},
 		{
 			pubkey:      pubkeyDsa,
@@ -436,6 +466,7 @@ func TestIsSecure(t *testing.T) {
 		{pubkeyRsa1024, false},
 		{pubkeyRsa2048, true},
 		{pubkeyRsa4096, true},
+		{pubkeyRsa8192, true},
 		{pubkeyDsa, false},
 		{pubkeyEcdsa256, false},
 		{pubkeyEcdsa384, false},
