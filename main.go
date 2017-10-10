@@ -404,15 +404,24 @@ func splitPubkey(pubkey []byte) (string, []int) {
 			break
 		}
 
-		data := make([]byte, length)
-		n, _ := buf.Read(data)
-		if int32(n) != length {
+		if length <= 0 || length > 4096 {
+			// Stop parsing if any part has a negative length
+			// or is bigger than 4 KB.
+			// The longest possible part is 2049 bytes (for RSA-16384) anyway.
+			break
+		} else if len(partLengths) == 0 {
+			// Convert the first part to a string
+			data := make([]byte, length)
+			if n, _ := buf.Read(data); int32(n) != length {
+				// Stop parsing if not enough bytes were available
+				break
+			}
+			firstPart = string(data)
+		} else if _, err := buf.Seek(int64(length), io.SeekCurrent); err != nil {
+			// Stop parsing if skipping bytes was not possible
 			break
 		}
 
-		if len(partLengths) == 0 {
-			firstPart = string(data)
-		}
 		partLengths = append(partLengths, int(length))
 	}
 
