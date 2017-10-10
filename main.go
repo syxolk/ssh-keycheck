@@ -682,9 +682,7 @@ func mergeLogs(target logSummary, source logSummary) {
 // RSA: https://www.keylength.com/en/4/
 // ECDSA: https://wiki.archlinux.org/index.php/SSH_keys#ECDSA
 func (alg *algorithm) isSecure() bool {
-	return !(alg.name == dsa ||
-		alg.name == ecdsa ||
-		(alg.name == rsa && alg.keylen < 2048))
+	return (alg.name == rsa && alg.keylen >= 2048) || alg.name == ed25519
 }
 
 // Return a string representation of the given algorithm type.
