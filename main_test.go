@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"io"
 	"net"
 	"os"
 	"path"
@@ -188,8 +187,7 @@ func TestParseAuthorizedKeys(t *testing.T) {
 		"\n" + // empty line
 		"# Comment line\n"
 
-	var reader io.Reader = strings.NewReader(authorizedKeys)
-	keys, err := parseAuthorizedKeys(reader)
+	keys, err := parseAuthorizedKeys(strings.NewReader(authorizedKeys))
 
 	if err != nil {
 		t.Fatalf("Failed with error: %s", err)
@@ -228,31 +226,33 @@ func TestParseAllUsers(t *testing.T) {
 	passwd := "root:x:0:0:root:/root:/bin/bash\n" +
 		"hans:x:1000:1000:Hans,,,:/home/hans:/usr/bin/zsh"
 
-	var reader io.Reader = strings.NewReader(passwd)
-	users, err := parseAllUsers(reader)
-
+	users, err := parseAllUsers(strings.NewReader(passwd))
 	if err != nil {
 		t.Fatalf("Failed with error: %s", err)
 	}
 
-	if len(users) != 2 {
-		t.Fatalf("Expected %d but got %d users", 2, len(users))
+	parameters := []unixuser{
+		{
+			name: "root",
+			home: "/root",
+		},
+		{
+			name: "hans",
+			home: "/home/hans",
+		},
 	}
 
-	if users[0].name != "root" {
-		t.Errorf("Expected name %s but %s", "root", users[0].name)
+	if len(users) != len(parameters) {
+		t.Fatalf("Expected %d but got %d users", len(parameters), len(users))
 	}
 
-	if users[0].home != "/root" {
-		t.Errorf("Expected home %s but got %s", "/root", users[0].home)
-	}
-
-	if users[1].name != "hans" {
-		t.Errorf("Expected name %s but got %s", "hans", users[1].name)
-	}
-
-	if users[1].home != "/home/hans" {
-		t.Errorf("Expected home %s but got %s", "/home/hans", users[1].home)
+	for i, p := range parameters {
+		if p.name != users[i].name {
+			t.Errorf("Expected name %s but %s", p.name, users[i].name)
+		}
+		if p.home != users[i].home {
+			t.Errorf("Expected home %s but got %s", p.home, users[i].home)
+		}
 	}
 }
 
@@ -398,40 +398,78 @@ func TestParseLogLine(t *testing.T) {
 		t.Fatal("Could not load UTC")
 	}
 
-	rsaLine := "Aug 20 12:59:13 vserver sshd[12345]: " +
-		"Accepted publickey for root from 127.0.0.1 port 44152 ssh2: " +
-		"RSA 3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3"
-
-	line, ok := parseLogLine(2017, utc, rsaLine)
-	if !ok {
-		t.Fatal("Failed to parse log line")
+	parameters := []struct {
+		line string
+		year int
+		ok   bool
+		acc  access
+	}{
+		{
+			line: "Aug 20 12:59:13 vserver sshd[12345]: " +
+				"Accepted publickey for root from 127.0.0.1 port 44152 ssh2: " +
+				"RSA 3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3",
+			year: 2017,
+			ok:   true,
+			acc: access{
+				fingerprint: "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3",
+				ip:          net.IPv4(127, 0, 0, 1),
+				user:        "root",
+				ts:          time.Date(2017, 8, 20, 12, 59, 13, 0, utc),
+			},
+		},
+		{
+			line: "Jan  8 23:59:00 testing sshd[321]: " +
+				"Accepted publickey for deploy_1 from 10.11.12.13 port 8080 ssh2: " +
+				"ED25519 b7:32:01:5c:78:97:b1:3f:4d:bd:98:56:d0:33:61:3a",
+			year: 2017,
+			ok:   true,
+			acc: access{
+				fingerprint: "b7:32:01:5c:78:97:b1:3f:4d:bd:98:56:d0:33:61:3a",
+				ip:          net.IPv4(10, 11, 12, 13),
+				user:        "deploy_1",
+				ts:          time.Date(2017, 1, 8, 23, 59, 0, 0, utc),
+			},
+		},
+		{
+			line: "Sep 10 06:40:50 vserver sshd[12345]: " +
+				"Connection from 100.200.30.130 port 55339 on 180.60.50.150 port 22",
+			year: 2012,
+			ok:   false,
+		},
+		{
+			line: "Oct  8 07:25:32 ec2 sshd[15000]: " +
+				"Received disconnect from 120.10.230.120: 11:  [preauth]",
+			year: 2016,
+			ok:   false,
+		},
 	}
 
-	if line.fingerprint != "3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3" {
-		t.Errorf("Expected %s but go %s",
-			"3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3",
-			line.fingerprint)
-	}
+	for _, p := range parameters {
+		acc, ok := parseLogLine(p.year, utc, p.line)
+		if ok != p.ok {
+			t.Errorf("Expected parsing result %t but got %t", p.ok, ok)
+			continue
+		}
 
-	if !line.ip.Equal(net.IPv4(127, 0, 0, 1)) {
-		t.Errorf("Expected %s but got %s", "127.0.0.1", line.ip)
-	}
+		// only check access if parsing was successful
+		if ok {
+			if p.acc.fingerprint != acc.fingerprint {
+				t.Errorf("Expected fingerprint %s but go %s",
+					p.acc.fingerprint, acc.fingerprint)
+			}
 
-	if line.user != "root" {
-		t.Errorf("Expected %s but got %s", "root", line.user)
-	}
+			if !p.acc.ip.Equal(acc.ip) {
+				t.Errorf("Expected ip %s but got %s", p.acc.ip, acc.ip)
+			}
 
-	expectedTime := time.Date(2017, 8, 20, 12, 59, 13, 0, utc)
-	if !line.ts.Equal(expectedTime) {
-		t.Errorf("Expected %s but got %s", expectedTime, line.ts)
-	}
+			if p.acc.user != acc.user {
+				t.Errorf("Expected user %s but got %s", p.acc.user, acc.user)
+			}
 
-	connectionLine := "Sep 10 06:40:50 vserver sshd[12345]: " +
-		"Connection from 100.200.30.130 port 55339 on 180.60.50.150 port 22"
-
-	_, ok = parseLogLine(2017, utc, connectionLine)
-	if ok {
-		t.Fatal("Successfully parsed log line but expected to fail")
+			if !p.acc.ts.Equal(acc.ts) {
+				t.Errorf("Expected timestamp %s but got %s", p.acc.ts, acc.ts)
+			}
+		}
 	}
 }
 
