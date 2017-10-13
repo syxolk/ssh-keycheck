@@ -127,7 +127,7 @@ func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 boo
 	for _, row := range table {
 		var algStr, lastUseStr, lastIPStr, countStr, insecureStr string
 		if row.count > 0 {
-			lastUseStr = durationAsString(now.Sub(row.lastUse))
+			lastUseStr = durationPhrase(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
 			lastIPStr = row.lastIP.String()
 		} else {
@@ -589,7 +589,7 @@ func getAuthorizedKeysForAllUsers(prefix string) (map[string][]publickey, error)
 // Returns "x minute(s) ago" if the duration is below an hour.
 // Returns "x hour(s) ago" if the duration is below one day.
 // Otherwise returns "x day(s) ago".
-func durationAsString(dur time.Duration) string {
+func durationPhrase(dur time.Duration) string {
 	var count int
 	var unit string
 

@@ -256,26 +256,30 @@ func TestParseAllUsers(t *testing.T) {
 	}
 }
 
-func TestDurationAsString(t *testing.T) {
+func TestDurationPhrase(t *testing.T) {
 	parameters := []struct {
 		in  time.Duration
 		out string
 	}{
+		{0, "just now"},
 		{999 * time.Millisecond, "just now"},
+		{1 * time.Second, "1 second ago"},
 		{12 * time.Second, "12 seconds ago"},
 		{1 * time.Minute, "1 minute ago"},
 		{2 * time.Minute, "2 minutes ago"},
 		{1 * time.Hour, "1 hour ago"},
 		{2 * time.Hour, "2 hours ago"},
 		{24 * time.Hour, "1 day ago"},
+		{25 * time.Hour, "1 day ago"},
+		{47 * time.Hour, "1 day ago"},
 		{48 * time.Hour, "2 days ago"},
 		{192 * time.Hour, "8 days ago"},
 	}
 
 	for _, p := range parameters {
-		g := durationAsString(p.in)
+		g := durationPhrase(p.in)
 		if g != p.out {
-			t.Errorf("Expected %s but got %s", p.out, g)
+			t.Errorf("Expected %s for %v but got %s", p.out, p.in, g)
 		}
 	}
 }
