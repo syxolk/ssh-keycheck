@@ -125,7 +125,7 @@ func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 boo
 	fmt.Fprintln(w)
 
 	for _, row := range table {
-		var algStr, lastUseStr, lastIPStr, countStr, insecureStr string
+		var lastUseStr, lastIPStr, countStr, insecureStr string
 		if row.count > 0 {
 			lastUseStr = durationPhrase(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
@@ -135,20 +135,13 @@ func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 boo
 			countStr = "    -"
 			lastIPStr = "-"
 		}
-		if row.alg.name == rsa || row.alg.name == ecdsa {
-			// RSA and ECDSA can be generated with different key lengths
-			algStr = fmt.Sprintf("%s-%d", row.alg.name, row.alg.keylen)
-		} else {
-			// DSA and ED25519 have fixed key lengths
-			algStr = row.alg.name.String()
-		}
 		if row.alg.isSecure() {
 			insecureStr = "ok"
 		} else {
 			insecureStr = "insecure"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.comment,
-			algStr, insecureStr, lastUseStr, countStr, lastIPStr)
+			row.alg.String(), insecureStr, lastUseStr, countStr, lastIPStr)
 		if enableFingerprintMD5 {
 			fmt.Fprintf(w, "\t%s", row.fingerprintMD5)
 		}
@@ -683,6 +676,19 @@ func mergeLogs(target logSummary, source logSummary) {
 // ECDSA: https://wiki.archlinux.org/index.php/SSH_keys#ECDSA
 func (alg *algorithm) isSecure() bool {
 	return (alg.name == rsa && alg.keylen >= 2048) || alg.name == ed25519
+}
+
+// Return a string representation of the given algorithm.
+// Returns the name and key length for RSA and ECDSA.
+// Returns only the name for DSA and ED25519.
+func (alg *algorithm) String() string {
+	if alg.name == dsa || alg.name == ed25519 {
+		// DSA and ED25519 have fixed key lengths
+		return alg.name.String()
+	}
+
+	// RSA and ECDSA can be generated with different key lengths
+	return fmt.Sprintf("%s-%d", alg.name, alg.keylen)
 }
 
 // Return a string representation of the given algorithm type.
