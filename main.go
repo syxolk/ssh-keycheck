@@ -327,7 +327,7 @@ func parseAuthorizedKeys(file io.Reader) ([]publickey, error) {
 		})
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while scanning authorized keys: %s", err)
 	}
 
 	return keys, nil
@@ -462,14 +462,14 @@ func splitPubkey(pubkey []byte) (string, []int) {
 func parseLogFile(path string) (logSummary, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while checking mod time for file: %s", err)
 	}
 	logFileYear := info.ModTime().Year()
 	logFileTimezone := info.ModTime().Location()
 
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while opening logs: %s", err)
 	}
 	defer file.Close()
 
@@ -477,7 +477,7 @@ func parseLogFile(path string) (logSummary, error) {
 	if strings.HasSuffix(path, ".gz") {
 		gr, err := gzip.NewReader(file)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error while unzipping logs: %s", err)
 		}
 		defer gr.Close()
 
@@ -509,7 +509,7 @@ func parseLogFile(path string) (logSummary, error) {
 		logs[log.user][log.fingerprint] = access
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while scanning logs: %s", err)
 	}
 
 	return logs, nil
@@ -554,7 +554,7 @@ func parseAllUsers(file io.Reader) ([]unixuser, error) {
 		users = append(users, unixuser{name: fs[0], home: fs[5]})
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while parsing users: %s", err)
 	}
 
 	return users, nil
@@ -564,7 +564,7 @@ func parseAllUsers(file io.Reader) ([]unixuser, error) {
 func getAllUsers(prefix string) ([]unixuser, error) {
 	file, err := os.Open(path.Join(prefix, "etc", "passwd"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while getting all users: %s", err)
 	}
 	defer file.Close()
 
@@ -577,7 +577,7 @@ func getAllUsers(prefix string) ([]unixuser, error) {
 func getAuthorizedKeysForAllUsers(prefix string) (map[string][]publickey, error) {
 	users, err := getAllUsers(prefix)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while collecting authorized keys for all users: %s", err)
 	}
 
 	keys := make(map[string][]publickey)
@@ -652,7 +652,7 @@ func durationPhrase(dur time.Duration) string {
 func parseAllLogFiles(prefix string) (logSummary, error) {
 	allfiles, err := filepath.Glob(path.Join(prefix, "var", "log", "auth.log*"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while collecting auth.log files: %s", err)
 	}
 
 	allLogs := make(logSummary)
