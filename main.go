@@ -87,14 +87,16 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
 func main() {
-	csv := flag.Bool("csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
-	enableFingerprintMD5 := flag.Bool("fingerprint-md5", false, "Show fingerprint (MD5) column")
-	enableFingerprintSHA256 := flag.Bool("fingerprint-sha256", false, "Show fingerprint (SHA256) column")
-	showVersion := flag.Bool("version", false, "Show version and exit")
+	var csv, printMD5, printSHA256, showVersion bool
+	flag.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	flag.BoolVar(&printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
+	flag.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
+	flag.BoolVar(&showVersion, "version", false, "Show version and exit")
 	flag.Parse()
 
-	if *showVersion {
-		fmt.Println("ssh-keycheck", version, runtime.Version())
+	if showVersion {
+		fmt.Fprintln(os.Stderr, "ssh-keycheck", version, runtime.Version(),
+			runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
@@ -104,22 +106,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *csv {
+	if csv {
 		printCSV(os.Stdout, table)
 	} else {
-		printAlignedTable(os.Stdout, table, *enableFingerprintMD5, *enableFingerprintSHA256)
+		printAlignedTable(os.Stdout, table, printMD5, printSHA256)
 	}
 }
 
-func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 bool, enableFingerprintSHA256 bool) {
+func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool) {
 	now := time.Now()
 
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "USER\tCOMMENT\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
-	if enableFingerprintMD5 {
+	if printMD5 {
 		fmt.Fprintf(w, "\tFINGERPRINT-MD5")
 	}
-	if enableFingerprintSHA256 {
+	if printSHA256 {
 		fmt.Fprintf(w, "\tFINGERPRINT-SHA256")
 	}
 	fmt.Fprintln(w)
@@ -142,10 +144,10 @@ func printAlignedTable(out io.Writer, table []tableRow, enableFingerprintMD5 boo
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.comment,
 			row.alg.String(), insecureStr, lastUseStr, countStr, lastIPStr)
-		if enableFingerprintMD5 {
+		if printMD5 {
 			fmt.Fprintf(w, "\t%s", row.fingerprintMD5)
 		}
-		if enableFingerprintSHA256 {
+		if printSHA256 {
 			fmt.Fprintf(w, "\t%s", row.fingerprintSHA256)
 		}
 		fmt.Fprintln(w)
