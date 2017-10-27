@@ -39,6 +39,14 @@ const (
 	ed25519
 )
 
+var algorithmNames = [...]string{
+	"[unknown]",
+	"RSA",
+	"DSA",
+	"ECDSA",
+	"ED25519",
+}
+
 type algorithm struct {
 	name   algorithmType
 	keylen int
@@ -694,16 +702,6 @@ func (alg *algorithm) String() string {
 }
 
 // Return a string representation of the given algorithm type.
-func (name algorithmType) String() string {
-	switch name {
-	case rsa:
-		return "RSA"
-	case dsa:
-		return "DSA"
-	case ecdsa:
-		return "ECDSA"
-	case ed25519:
-		return "ED25519"
-	}
-	return "[unknown]"
+func (t algorithmType) String() string {
+	return algorithmNames[t]
 }

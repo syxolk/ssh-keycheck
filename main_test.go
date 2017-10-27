@@ -583,17 +583,21 @@ func TestIsSecure(t *testing.T) {
 }
 
 func TestAlgorithmTypeString(t *testing.T) {
-	parameters := []algorithmType{rsa, ecdsa, ed25519, dsa}
-
-	for _, p := range parameters {
-		s := p.String()
-		if len(s) == 0 || s == "[unknown]" {
-			t.Errorf("Expected algorithm name but got '%s'", s)
-		}
+	parameters := []struct {
+		t algorithmType
+		n string
+	}{
+		{rsa, "RSA"},
+		{dsa, "DSA"},
+		{ecdsa, "ECDSA"},
+		{ed25519, "ED25519"},
+		{unknownAlgorithm, "[unknown]"},
 	}
 
-	if unknownAlgorithm.String() != "[unknown]" {
-		t.Errorf("Expected %s but got %s", "[unknown]", unknownAlgorithm.String())
+	for _, p := range parameters {
+		if p.n != p.t.String() {
+			t.Errorf("Expected %s but got %s", p.n, p.t.String())
+		}
 	}
 }
 
