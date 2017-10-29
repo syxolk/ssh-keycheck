@@ -300,6 +300,8 @@ func TestParseKeyType(t *testing.T) {
 		{pubkeyEcdsa384, ecdsa, 384},
 		{pubkeyEcdsa521, ecdsa, 521},
 		{pubkeyEd25519, ed25519, 256},
+		{"AAAQAQ==", unknownAlgorithm, 0}, // no valid parts (part length 4097)
+		{"AAAAAUE=", unknownAlgorithm, 0}, // a valid part but unknown name
 	}
 
 	for _, p := range parameters {
@@ -374,6 +376,18 @@ func TestSplitPubkey(t *testing.T) {
 			pubkey:      pubkeyEcdsa521,
 			firstPart:   "ecdsa-sha2-nistp521",
 			partLengths: []int{19, 8, 133},
+		},
+		{
+			// part length 4097 (too long)
+			pubkey:      "AAAQAQ==",
+			firstPart:   "",
+			partLengths: nil,
+		},
+		{
+			// part length 4 but only 3 bytes available
+			pubkey:      "AAAABAECAw==",
+			firstPart:   "",
+			partLengths: nil,
 		},
 	}
 
