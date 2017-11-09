@@ -185,6 +185,7 @@ func TestParseAuthorizedKeys(t *testing.T) {
 	authorizedKeys := "ssh-rsa " + pubkeyRsa4096 + " syxolk@github.com\n" +
 		"ssh-rsa INVALIDKEY\n" +
 		"\n" + // empty line
+		"ssh-ed25519 __INVALID_BASE64__ example@example.com\n" +
 		"# Comment line\n"
 
 	keys, err := parseAuthorizedKeys(strings.NewReader(authorizedKeys))
@@ -224,7 +225,8 @@ func TestParseAuthorizedKeys(t *testing.T) {
 
 func TestParseAllUsers(t *testing.T) {
 	passwd := "root:x:0:0:root:/root:/bin/bash\n" +
-		"hans:x:1000:1000:Hans,,,:/home/hans:/usr/bin/zsh"
+		"hans:x:1000:1000:Hans,,,:/home/hans:/usr/bin/zsh\n" +
+		"invalid:entry:ignore:this"
 
 	users, err := parseAllUsers(strings.NewReader(passwd))
 	if err != nil {
@@ -458,6 +460,20 @@ func TestParseLogLine(t *testing.T) {
 			line: "Oct  8 07:25:32 ec2 sshd[15000]: " +
 				"Received disconnect from 120.10.230.120: 11:  [preauth]",
 			year: 2016,
+			ok:   false,
+		},
+		{
+			// Contains 'Accepted publickey for' but is invalid nevertheless
+			line: "Accepted publickey for INVALID",
+			year: 1995,
+			ok:   false,
+		},
+		{
+			// Invalid date
+			line: "Aug 32 12:00:00 vserver sshd[12345]: " +
+				"Accepted publickey for root from 127.0.0.1 port 44152 ssh2: " +
+				"RSA 3c:a1:90:94:fd:56:ea:92:d2:d8:3f:12:27:47:96:d3",
+			year: 2000,
 			ok:   false,
 		},
 	}
