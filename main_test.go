@@ -671,6 +671,18 @@ func TestGetAuthorizedKeysForAllUsers(t *testing.T) {
 				fingerprintMD5: fingerprintMD5Ecdsa256,
 			},
 		},
+		"compressed": {
+			{
+				alg:            algorithm{name: rsa},
+				comment:        "compressed@example.com",
+				fingerprintMD5: fingerprintMD5Rsa1024,
+			},
+		},
+	}
+
+	if len(keys) != len(parameters) {
+		t.Fatalf("Expected to have %d users but got %d",
+			len(parameters), len(keys))
 	}
 
 	for n, p := range parameters {
@@ -705,6 +717,7 @@ func TestGetAllUsers(t *testing.T) {
 	parameters := []unixuser{
 		{name: "root", home: "/root"},
 		{name: "deploy", home: "/home/deploy"},
+		{name: "compressed", home: "/home/compressed"},
 	}
 
 	if len(users) != len(parameters) {
@@ -741,9 +754,24 @@ func TestParseAllLogFiles(t *testing.T) {
 				lastIP: net.IPv4(10, 0, 0, 4),
 			},
 		},
+		"compressed": {
+			"e6:96:4f:57:3a:65:d9:f5:23:bb:56:5a:03:27:86:8d": {
+				count:  1,
+				lastIP: net.IPv4(10, 11, 12, 13),
+			},
+		},
+	}
+
+	if len(parameters) != len(accesses) {
+		t.Fatalf("Expected %d users but got %d", len(parameters), len(accesses))
 	}
 
 	for user, submap := range parameters {
+		if len(submap) != len(accesses[user]) {
+			t.Fatalf("Expected %s to have %d keys but got %d",
+				user, len(submap), len(accesses[user]))
+		}
+
 		for fp, a := range submap {
 			if accesses[user][fp].count != a.count {
 				t.Errorf("Expected count %d but got %d", a.count, accesses[user][fp].count)
@@ -763,6 +791,13 @@ func TestBuildKeyTable(t *testing.T) {
 	}
 
 	parameters := []tableRow{
+		{
+			alg:     algorithm{name: rsa},
+			count:   1,
+			lastIP:  net.IPv4(10, 11, 12, 13),
+			comment: "compressed@example.com",
+			user:    "compressed",
+		},
 		{
 			alg:     algorithm{name: ecdsa},
 			count:   3,
