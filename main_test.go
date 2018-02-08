@@ -144,6 +144,127 @@ const pubkeyEd25519 = "AAAAC3NzaC1lZDI1NTE5AAAAIDTOl+HDVEDrNXcm2Azxjw3/VZNith" +
 const fingerprintMD5Ed25519 = "b7:32:01:5c:78:97:b1:3f:4d:bd:98:56:d0:33:61:3a"
 const fingerprintSHA256Ed25519 = "dqnPmznV1WeYUTUo+ZRBoaZzgbo1H30rqbk1MyiQsB4"
 
+func TestMainVersion(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	args := []string{"ssh-keycheck", "-version"}
+
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	if exit != success {
+		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
+	}
+
+	if stdout.Len() != 0 {
+		t.Errorf("Expected no stdout but got %s", stdout.String())
+	}
+
+	if !strings.HasPrefix(stderr.String(), "ssh-keycheck") {
+		t.Errorf("Expected stderr to start with ssh-keycheck but got %s", stderr.String())
+	}
+}
+
+func TestMainHelp(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	args := []string{"ssh-keycheck", "-help"}
+
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	if exit != success {
+		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
+	}
+
+	if stdout.Len() != 0 {
+		t.Errorf("Expected no stdout but got %s", stdout.String())
+	}
+
+	allFlags := []string{
+		"-csv",
+		"-fingerprint-md5",
+		"-fingerprint-sha256",
+		"-help",
+		"-version",
+	}
+	out := stderr.String()
+	for _, f := range allFlags {
+		if !strings.Contains(out, f) {
+			t.Errorf("Expected to find flag %s", f)
+		}
+	}
+}
+
+func TestMainInvalidFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	args := []string{"ssh-keycheck", "-not-there"}
+
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	if exit != invalidFlags {
+		t.Fatalf("Expected mainHelper() to return %d but got %d", invalidFlags, exit)
+	}
+}
+
+func TestMainDefaultOutput(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	args := []string{"ssh-keycheck"}
+
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	if exit != success {
+		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
+	}
+
+	if stderr.Len() != 0 {
+		t.Errorf("Expected no stderr but got %s", stderr.String())
+	}
+
+	// Only check if it seems to be correct, everything else
+	// is already checked in TestBuildKeyTable and TestPrintAlignedTable
+	out := stdout.String()
+	expectedStrings := []string{
+		"USER",
+		"COMMENT",
+		"compressed@example.com",
+		"deploy",
+	}
+	for _, s := range expectedStrings {
+		if !strings.Contains(out, s) {
+			t.Errorf("Expected stdout to contain %s", s)
+		}
+	}
+}
+
+func TestMainCsvOutput(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	args := []string{"ssh-keycheck", "-csv"}
+
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	if exit != success {
+		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
+	}
+
+	if stderr.Len() != 0 {
+		t.Errorf("Expected no stderr but got %s", stderr.String())
+	}
+
+	// Only check if it seems to be correct, everything else
+	// is already checked in TestBuildKeyTable and TestPrintCSV
+	out := stdout.String()
+	expectedStrings := []string{
+		"user",
+		"comment",
+		"fingerprint_md5",
+		"fingerprint_sha256",
+		"compressed@example.com",
+		"deploy",
+	}
+	for _, s := range expectedStrings {
+		if !strings.Contains(out, s) {
+			t.Errorf("Expected stdout to contain %s", s)
+		}
+	}
+}
+
 func TestComputeFingerprint(t *testing.T) {
 	parameters := []struct {
 		pubkey            string
