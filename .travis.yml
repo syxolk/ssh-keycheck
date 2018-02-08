@@ -1,13 +1,14 @@
 sudo: false
 language: go
 go:
-  - 1.8.7
-  - 1.9.4
-
-script: make test && make
-
+- 1.8.7
+- 1.9.4
+before_install:
+- go get github.com/mattn/goveralls
+script:
+- make test && make
+- $GOPATH/bin/goveralls -service=travis-ci
 before_deploy: tar -cvzf "ssh-keycheck_${TRAVIS_TAG}_amd64.tar.gz" ssh-keycheck
-
 deploy:
   provider: releases
   api_key:
