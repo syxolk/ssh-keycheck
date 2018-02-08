@@ -29,6 +29,14 @@ import (
 
 var version = "undefined"
 
+type exitCode int
+
+const (
+	success exitCode = iota
+	failedToRun
+	invalidFlags
+)
+
 type algorithmType int
 
 const (
@@ -95,30 +103,48 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
 func main() {
-	var csv, printMD5, printSHA256, showVersion bool
-	flag.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
-	flag.BoolVar(&printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
-	flag.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
-	flag.BoolVar(&showVersion, "version", false, "Show version and exit")
-	flag.Parse()
+	os.Exit(int(mainHelper(os.Args, "/", os.Stdout, os.Stderr)))
+}
 
-	if showVersion {
-		fmt.Fprintln(os.Stderr, "ssh-keycheck", version, runtime.Version(),
-			runtime.GOOS, runtime.GOARCH)
-		os.Exit(0)
+func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer) exitCode {
+	var csv, printMD5, printSHA256, showVersion, showHelp bool
+	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	flags.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	flags.BoolVar(&printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
+	flags.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
+	flags.BoolVar(&showVersion, "version", false, "Show version and exit")
+	flags.BoolVar(&showHelp, "help", false, "Show help and exit")
+	err := flags.Parse(args[1:])
+
+	if err != nil {
+		return invalidFlags
 	}
 
-	table, err := buildKeyTable("/")
+	if showVersion {
+		fmt.Fprintln(stderr, "ssh-keycheck", version, runtime.Version(),
+			runtime.GOOS, runtime.GOARCH)
+		return success
+	}
+
+	if showHelp {
+		fmt.Fprintf(stderr, "Usage of %s:\n", args[0])
+		flags.PrintDefaults()
+		return success
+	}
+
+	table, err := buildKeyTable(prefix)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, err)
+		return failedToRun
 	}
 
 	if csv {
-		printCSV(os.Stdout, table)
+		printCSV(stdout, table)
 	} else {
-		printAlignedTable(os.Stdout, table, printMD5, printSHA256)
+		printAlignedTable(stdout, table, printMD5, printSHA256)
 	}
+	return success
 }
 
 func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool) {
