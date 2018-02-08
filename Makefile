@@ -5,7 +5,7 @@ ssh-keycheck: main.go
 
 .PHONY: test
 test:
-	go test -v
+	go test -v -cover
 
 .PHONY: clean
 clean:
