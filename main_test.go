@@ -8,6 +8,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -158,8 +159,15 @@ func TestMainVersion(t *testing.T) {
 		t.Errorf("Expected no stdout but got %s", stdout.String())
 	}
 
-	if !strings.HasPrefix(stderr.String(), "ssh-keycheck") {
+	out := stderr.String()
+	if !strings.HasPrefix(out, "ssh-keycheck") {
 		t.Errorf("Expected stderr to start with ssh-keycheck but got %s", stderr.String())
+	}
+	if !strings.Contains(out, version) {
+		t.Errorf("Expected stderr to contain ssh-keycheck version: %s", version)
+	}
+	if !strings.Contains(out, runtime.Version()) {
+		t.Errorf("Expected stderr to contain go version: %s", runtime.Version())
 	}
 }
 
