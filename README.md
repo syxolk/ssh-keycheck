@@ -36,6 +36,8 @@ Usage of ssh-keycheck:
         Show fingerprint (MD5) column
   -fingerprint-sha256
         Show fingerprint (SHA256) column
+  -help
+        Show help and exit
   -version
         Show version and exit
 ```
