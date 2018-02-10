@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -201,13 +202,18 @@ func TestMainHelp(t *testing.T) {
 }
 
 func TestMainInvalidFlag(t *testing.T) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	args := []string{"ssh-keycheck", "-not-there"}
+	parameters := [][]string{
+		{"ssh-keycheck", "-not-there"},
+		{"ssh-keycheck", "-secure", "-insecure"},
+		{"ssh-keycheck", "-used", "-3"},
+		{"ssh-keycheck", "-user", "(.*"},
+	}
 
-	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
-	if exit != invalidFlags {
-		t.Fatalf("Expected mainHelper() to return %d but got %d", invalidFlags, exit)
+	for _, p := range parameters {
+		exit := mainHelper(p, getTestDirectory(t), ioutil.Discard, ioutil.Discard)
+		if exit != invalidFlags {
+			t.Fatalf("Expected mainHelper() to return %d but got %d", invalidFlags, exit)
+		}
 	}
 }
 
@@ -1030,15 +1036,22 @@ func TestPrintCSV(t *testing.T) {
 }
 
 func TestPrintAlignedTable(t *testing.T) {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	now := time.Date(2017, 10, 3, 12, 0, 0, 0, utc)
+
 	re := []string{
 		"^USER  \\s*COMMENT  \\s*TYPE  \\s*SECURITY  \\s*LAST USE  \\s*COUNT  \\s*LAST IP$",
-		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*\\d+ [a-z]+ ago  \\s*1  \\s*10.0.0.1$",
+		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*1 day ago  \\s*1  \\s*10.0.0.1$",
 		"^root  \\s*test@github.com  \\s*ED25519  \\s*ok  \\s*never  \\s*-  \\s*-$",
 		"^$",
 	}
 
 	var buf bytes.Buffer
-	printAlignedTable(&buf, getTestTable(t), false, false)
+	printAlignedTable(&buf, getTestTable(t), false, false, now)
 	lines := strings.Split(buf.String(), "\n")
 
 	if len(lines) != len(re) {
@@ -1055,15 +1068,22 @@ func TestPrintAlignedTable(t *testing.T) {
 }
 
 func TestPrintAlignedTableFingerprints(t *testing.T) {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	now := time.Date(2017, 10, 3, 12, 0, 0, 0, utc)
+
 	re := []string{
 		"^USER  \\s*COMMENT  \\s*TYPE  \\s*SECURITY  \\s*LAST USE  \\s*COUNT  \\s*LAST IP  \\s*FINGERPRINT-MD5  \\s*FINGERPRINT-SHA256$",
-		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*\\d+ [a-z]+ ago  \\s*1  \\s*10.0.0.1  \\s*58:b4:db:ba  \\s*TTCk17rJoNk$",
+		"^deploy  \\s*ecdsa@example.com  \\s*ECDSA-521  \\s*insecure  \\s*1 day ago  \\s*1  \\s*10.0.0.1  \\s*58:b4:db:ba  \\s*TTCk17rJoNk$",
 		"^root  \\s*test@github.com  \\s*ED25519  \\s*ok  \\s*never  \\s*-  \\s*-  \\s*b7:32:61:3a  \\s*dqk1MyiQsB4$",
 		"^$",
 	}
 
 	var buf bytes.Buffer
-	printAlignedTable(&buf, getTestTable(t), true, true)
+	printAlignedTable(&buf, getTestTable(t), true, true, now)
 	lines := strings.Split(buf.String(), "\n")
 
 	if len(lines) != len(re) {
@@ -1076,5 +1096,139 @@ func TestPrintAlignedTableFingerprints(t *testing.T) {
 			t.Error(l)
 			t.Error(re[i])
 		}
+	}
+}
+
+func TestValidateFilterOptions(t *testing.T) {
+	validParameters := []filterOptions{
+		{},
+		{usedDays: 30},
+		{unusedDays: 180},
+		{onlySecure: true},
+		{onlyInsecure: true},
+		{unusedDays: 3, usedDays: 4},
+	}
+
+	errorParameters := []filterOptions{
+		{onlySecure: true, onlyInsecure: true}, // always gives empty result
+		{usedDays: -2},                         // negative not allowed
+		{unusedDays: -3},                       // negative not allowed
+		{unusedDays: 4, usedDays: 3},           // results in empty interval
+		{unusedDays: 4, usedDays: 4},           // results in empty interval
+	}
+
+	for _, p := range validParameters {
+		if res := p.validate(); res != nil {
+			t.Errorf("Expected %#v to be valid but was an error", p)
+		}
+	}
+
+	for _, p := range errorParameters {
+		if res := p.validate(); res == nil {
+			t.Errorf("Expected %#v to error but was valid", p)
+		}
+	}
+}
+
+func TestFilterKeyTable(t *testing.T) {
+	utc, err := time.LoadLocation("UTC")
+	if err != nil {
+		t.Fatal("Could not load UTC")
+	}
+
+	now := time.Date(2017, 10, 10, 12, 0, 0, 0, utc)
+
+	getData := func() []tableRow {
+		return []tableRow{
+			{
+				user:    "root",
+				comment: "A",
+				alg:     algorithm{name: rsa, keylen: 4096},
+				count:   1,
+				lastUse: time.Date(2017, 10, 9, 12, 0, 0, 0, utc),
+			},
+			{
+				user:    "default",
+				comment: "B",
+				alg:     algorithm{name: rsa, keylen: 4096},
+				count:   2,
+				lastUse: time.Date(2017, 10, 1, 12, 0, 0, 0, utc),
+			},
+			{
+				user:    "default",
+				comment: "C",
+				alg:     algorithm{name: dsa, keylen: 1024},
+				count:   3,
+				lastUse: time.Date(2017, 10, 9, 12, 0, 0, 0, utc),
+			},
+			{
+				user:    "root",
+				comment: "D",
+				alg:     algorithm{name: dsa, keylen: 1024},
+				count:   4,
+				lastUse: time.Date(2017, 10, 1, 12, 0, 0, 0, utc),
+			},
+			{
+				user:    "default",
+				comment: "E",
+				alg:     algorithm{name: ed25519, keylen: 256},
+				count:   0,
+				lastUse: time.Time{},
+			},
+		}
+	}
+
+	parameters := []struct {
+		name        string
+		fopts       filterOptions
+		keyComments []string
+	}{
+		{
+			name:        "default",
+			fopts:       filterOptions{},
+			keyComments: []string{"A", "B", "C", "D", "E"},
+		},
+		{
+			name:        "onlySecure",
+			fopts:       filterOptions{onlySecure: true},
+			keyComments: []string{"A", "B", "E"},
+		},
+		{
+			name:        "onlyInsecure",
+			fopts:       filterOptions{onlyInsecure: true},
+			keyComments: []string{"C", "D"},
+		},
+		{
+			name:        "usedDays",
+			fopts:       filterOptions{now: now, usedDays: 3},
+			keyComments: []string{"A", "C"},
+		},
+		{
+			name:        "unusedDays",
+			fopts:       filterOptions{now: now, unusedDays: 4},
+			keyComments: []string{"B", "D", "E"},
+		},
+		{
+			name:        "user",
+			fopts:       filterOptions{user: regexp.MustCompile("^ro+t$")},
+			keyComments: []string{"A", "D"},
+		},
+	}
+
+	for _, p := range parameters {
+		t.Run(p.name, func(t *testing.T) {
+			res := filterKeyTable(getData(), &p.fopts)
+
+			if len(res) != len(p.keyComments) {
+				t.Fatalf("Expected to get %d keys but got %d",
+					len(p.keyComments), len(res))
+			}
+			for i, c := range p.keyComments {
+				if res[i].comment != c {
+					t.Errorf("Expected key comment [%d] to be %s but got %s",
+						i, c, res[i].comment)
+				}
+			}
+		})
 	}
 }

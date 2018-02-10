@@ -39,6 +39,16 @@ Usage of ssh-keycheck:
         Show fingerprint (SHA256) column
   -help
         Show help and exit
+  -insecure
+        List only insecure keys
+  -secure
+        List only secure keys
+  -unused int
+        List only keys more than x days not used
+  -used int
+        List only keys used in the last x days
+  -user string
+        List only keys with matching user name
   -version
         Show version and exit
 ```

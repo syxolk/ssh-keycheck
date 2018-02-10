@@ -99,6 +99,15 @@ type tableRow struct {
 	lastIP            net.IP
 }
 
+type filterOptions struct {
+	now          time.Time
+	onlyInsecure bool
+	onlySecure   bool
+	unusedDays   int
+	usedDays     int
+	user         *regexp.Regexp
+}
+
 var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
 	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
@@ -108,6 +117,8 @@ func main() {
 
 func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer) exitCode {
 	var csv, printMD5, printSHA256, showVersion, showHelp bool
+	var userRegexp string
+	fopts := filterOptions{now: time.Now()}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
@@ -115,9 +126,28 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 	flags.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
 	flags.BoolVar(&showVersion, "version", false, "Show version and exit")
 	flags.BoolVar(&showHelp, "help", false, "Show help and exit")
+	flags.BoolVar(&fopts.onlySecure, "secure", false, "List only secure keys")
+	flags.BoolVar(&fopts.onlyInsecure, "insecure", false, "List only insecure keys")
+	flags.IntVar(&fopts.usedDays, "used", 0, "List only keys used in the last x days")
+	flags.IntVar(&fopts.unusedDays, "unused", 0, "List only keys more than x days not used")
+	flags.StringVar(&userRegexp, "user", "", "List only keys with matching user name")
 	err := flags.Parse(args[1:])
 
 	if err != nil {
+		return invalidFlags
+	}
+
+	if userRegexp != "" {
+		fopts.user, err = regexp.Compile(userRegexp)
+		if err != nil {
+			fmt.Fprintf(stderr, "Error for flag -user: %s\n", err)
+			return invalidFlags
+		}
+	}
+
+	err = fopts.validate()
+	if err != nil {
+		fmt.Fprintf(stderr, "%s\n", err)
 		return invalidFlags
 	}
 
@@ -139,17 +169,17 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 		return failedToRun
 	}
 
+	table = filterKeyTable(table, &fopts)
+
 	if csv {
 		printCSV(stdout, table)
 	} else {
-		printAlignedTable(stdout, table, printMD5, printSHA256)
+		printAlignedTable(stdout, table, printMD5, printSHA256, fopts.now)
 	}
 	return success
 }
 
-func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool) {
-	now := time.Now()
-
+func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool, now time.Time) {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "USER\tCOMMENT\tTYPE\tSECURITY\tLAST USE\tCOUNT\tLAST IP")
 	if printMD5 {
@@ -733,4 +763,56 @@ func (alg *algorithm) String() string {
 // Return a string representation of the given algorithm type.
 func (t algorithmType) String() string {
 	return algorithmNames[t]
+}
+
+// Check if the filter options don't specify contradictory filter criteria.
+// Returns nil if no problems were found and the filter options are valid.
+// Returns an error if there were any conflicts.
+func (opt *filterOptions) validate() error {
+	if opt.onlySecure && opt.onlyInsecure {
+		return fmt.Errorf("Cannot use -secure and -insecure together")
+	}
+	if opt.usedDays < 0 {
+		return fmt.Errorf("Flag -used cannot be set to a negative number: %d",
+			opt.usedDays)
+	}
+	if opt.unusedDays < 0 {
+		return fmt.Errorf("Flag -unused cannot be set to a negative number: %d",
+			opt.unusedDays)
+	}
+	if opt.usedDays > 0 && opt.unusedDays > 0 && opt.unusedDays >= opt.usedDays {
+		return fmt.Errorf("Flag -unused cannot be equal or larger than -used: %d >= %d",
+			opt.unusedDays, opt.usedDays)
+	}
+
+	return nil
+}
+
+// Filters a given key table by certain filter criteria.
+// Returns the rows matching the criteria, in the same order as in the input table.
+func filterKeyTable(table []tableRow, opt *filterOptions) (ret []tableRow) {
+	usedDays := 24 * time.Hour * time.Duration(opt.usedDays)
+	unusedDays := 24 * time.Hour * time.Duration(opt.unusedDays)
+
+	for _, r := range table {
+		sinceLastUse := opt.now.Sub(r.lastUse)
+		if opt.onlySecure && !r.alg.isSecure() {
+			continue
+		}
+		if opt.onlyInsecure && r.alg.isSecure() {
+			continue
+		}
+		if opt.usedDays > 0 && (r.count == 0 || sinceLastUse > usedDays) {
+			continue
+		}
+		if opt.unusedDays > 0 && r.count > 0 && sinceLastUse < unusedDays {
+			continue
+		}
+		if opt.user != nil && opt.user.FindString(r.user) == "" {
+			continue
+		}
+
+		ret = append(ret, r)
+	}
+	return
 }
