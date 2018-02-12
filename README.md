@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/syxolk/ssh-keycheck.svg?branch=master)](https://travis-ci.org/syxolk/ssh-keycheck)
 [![Coverage Status](https://coveralls.io/repos/github/syxolk/ssh-keycheck/badge.svg)](https://coveralls.io/github/syxolk/ssh-keycheck)
+[![Go Report Card](https://goreportcard.com/badge/github.com/syxolk/ssh-keycheck)](https://goreportcard.com/report/github.com/syxolk/ssh-keycheck)
 
 `ssh-keycheck` is a tool that gives you a quick overview of all authorized
 ssh keys on your server and their last use and usage count. This may be
