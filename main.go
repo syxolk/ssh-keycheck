@@ -253,7 +253,7 @@ func buildKeyTable(prefix string) ([]tableRow, error) {
 	// Wait for both goroutines to finish
 	wg.Wait()
 
-	// Check for any errors that occured
+	// Check for any errors that occurred
 	if allKeysErr != nil {
 		return nil, allKeysErr
 	}
