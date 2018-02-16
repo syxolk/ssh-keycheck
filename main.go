@@ -423,13 +423,16 @@ func parseKeyType(pubkey []byte) algorithm {
 // A public key can be divided in one or more parts. Every part consists of
 // a length field (4 bytes, big endian) and a data field. The length field
 // specifies the length of the data field in bytes.
+// Returns "", nil if any parsing error occurred
 func splitPubkey(pubkey []byte) (string, []int) {
 	buf := bytes.NewReader(pubkey)
 	firstPart := ""
 	var partLengths []int
 	for {
 		var length int32
-		if err := binary.Read(buf, binary.BigEndian, &length); err != nil {
+		if err := binary.Read(buf, binary.BigEndian, &length); err == io.EOF {
+			// Did not read any byte because the last read reached the end already
+			// This is the only valid exit from the loop
 			break
 		}
 
@@ -437,18 +440,18 @@ func splitPubkey(pubkey []byte) (string, []int) {
 			// Stop parsing if any part has a negative length
 			// or is bigger than 4 KB.
 			// The longest possible part is 2049 bytes (for RSA-16384) anyway.
-			break
+			return "", nil
 		} else if len(partLengths) == 0 {
 			// Convert the first part to a string
 			data := make([]byte, length)
 			if n, _ := buf.Read(data); int32(n) != length {
 				// Stop parsing if not enough bytes were available
-				break
+				return "", nil
 			}
 			firstPart = string(data)
-		} else if _, err := buf.Seek(int64(length), io.SeekCurrent); err != nil {
+		} else if off, err := buf.Seek(int64(length), io.SeekCurrent); err != nil || int(off) > len(pubkey) {
 			// Stop parsing if skipping bytes was not possible
-			break
+			return "", nil
 		}
 
 		partLengths = append(partLengths, int(length))

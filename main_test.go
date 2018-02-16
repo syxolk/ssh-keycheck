@@ -508,18 +508,6 @@ func TestSplitPubkey(t *testing.T) {
 			firstPart:   "ecdsa-sha2-nistp521",
 			partLengths: []int{19, 8, 133},
 		},
-		{
-			// part length 4097 (too long)
-			pubkey:      "AAAQAQ==",
-			firstPart:   "",
-			partLengths: nil,
-		},
-		{
-			// part length 4 but only 3 bytes available
-			pubkey:      "AAAABAECAw==",
-			firstPart:   "",
-			partLengths: nil,
-		},
 	}
 
 	for _, p := range parameters {
@@ -536,7 +524,31 @@ func TestSplitPubkey(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(l, p.partLengths) {
-			t.Errorf("Expected part lengths %v but got %v", p.partLengths, l)
+			t.Errorf("Expected part lengths %#v but got %#v", p.partLengths, l)
+		}
+	}
+}
+
+func TestSplitPubkeyErrors(t *testing.T) {
+	parameters := [][]byte{
+		nil,                                   // nil input
+		{},                                    // empty input
+		{0, 0, 16, 1},                         // part length 4097 (too long)
+		{0, 0, 0, 1, 65, 0, 0, 16, 1},         // valid first part but second part is 4097 bytes long
+		{0, 0, 0, 4, 1, 2, 3},                 // part length 4 but only 3 bytes available
+		{0, 0, 0, 1, 65, 0, 0, 0, 4, 1, 2, 3}, // valid first part but second part is not long enough
+		{0, 0, 0, 0},                          // part length 0 (too short)
+		{0},                                   // length field is not long enough (must be 4 bytes)
+		{0, 0, 0, 1, 65, 0},                   // valid first part but length field of second part not long enough
+	}
+
+	for _, k := range parameters {
+		f, l := splitPubkey(k)
+		if f != "" {
+			t.Errorf("Expected firstPart to be \"\" but got %s", f)
+		}
+		if l != nil {
+			t.Errorf("Expected partLengths to be nil but got %#v", l)
 		}
 	}
 }
