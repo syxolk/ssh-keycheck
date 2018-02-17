@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -116,12 +117,13 @@ func main() {
 }
 
 func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer) exitCode {
-	var csv, printMD5, printSHA256, showVersion, showHelp bool
+	var csv, json, printMD5, printSHA256, showVersion, showHelp bool
 	var userRegexp string
 	fopts := filterOptions{now: time.Now()}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	flags.BoolVar(&json, "json", false, "Print table as JSON using RFC 3339 for dates")
 	flags.BoolVar(&printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
 	flags.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
 	flags.BoolVar(&showVersion, "version", false, "Show version and exit")
@@ -163,6 +165,11 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 		return success
 	}
 
+	if json && csv {
+		fmt.Fprintln(stderr, "Cannot use -csv and -json together")
+		return invalidFlags
+	}
+
 	table, err := buildKeyTable(prefix)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
@@ -171,7 +178,9 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 
 	table = filterKeyTable(table, &fopts)
 
-	if csv {
+	if json {
+		printJSON(stdout, table)
+	} else if csv {
 		printCSV(stdout, table)
 	} else {
 		printAlignedTable(stdout, table, printMD5, printSHA256, fopts.now)
@@ -218,6 +227,43 @@ func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bo
 	}
 
 	w.Flush()
+}
+
+func (r *tableRow) MarshalJSON() ([]byte, error) {
+	j := struct {
+		User              string     `json:"user"`
+		Comment           string     `json:"comment"`
+		Type              string     `json:"type"`
+		Keylen            int        `json:"keylen"`
+		Secure            bool       `json:"secure"`
+		LastUse           *time.Time `json:"last_use"`
+		Count             int        `json:"count"`
+		LastIP            *net.IP    `json:"last_ip"`
+		FingerprintMD5    string     `json:"fingerprint_md5"`
+		FingerprintSHA256 string     `json:"fingerprint_sha256"`
+	}{
+		User:              r.user,
+		Comment:           r.comment,
+		Type:              r.alg.name.String(),
+		Keylen:            r.alg.keylen,
+		Secure:            r.alg.isSecure(),
+		Count:             r.count,
+		FingerprintMD5:    r.fingerprintMD5,
+		FingerprintSHA256: r.fingerprintSHA256,
+	}
+	if r.count > 0 {
+		// This is a trick to output null for last_use and last_ip if
+		// count == 0 instead of zero time and empty string
+		j.LastUse = &r.lastUse
+		j.LastIP = &r.lastIP
+	}
+
+	return json.Marshal(j)
+}
+
+func printJSON(out io.Writer, table []tableRow) error {
+	m := json.NewEncoder(out)
+	return m.Encode(table)
 }
 
 func printCSV(out io.Writer, table []tableRow) {
