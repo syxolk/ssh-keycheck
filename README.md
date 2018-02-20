@@ -76,7 +76,7 @@ LogLevel VERBOSE
 The log files under `/var/log` require root rights.
 
 ## Development
-Requires a recent Go version (only tested with Go >=1.8)
+Requires a recent Go version (only tested with Go >=1.9)
 
 ```
 go get github.com/syxolk/ssh-keycheck
