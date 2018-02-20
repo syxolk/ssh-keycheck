@@ -41,6 +41,8 @@ Usage of ssh-keycheck:
         Show help and exit
   -insecure
         List only insecure keys
+  -json
+        Print table as JSON using RFC 3339 for dates
   -secure
         List only secure keys
   -unused int
