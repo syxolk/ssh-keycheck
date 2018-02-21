@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"io/ioutil"
 	"net"
 	"os"
@@ -188,6 +189,7 @@ func TestMainHelp(t *testing.T) {
 
 	allFlags := []string{
 		"-csv",
+		"-json",
 		"-fingerprint-md5",
 		"-fingerprint-sha256",
 		"-help",
@@ -207,6 +209,7 @@ func TestMainInvalidFlag(t *testing.T) {
 		{"ssh-keycheck", "-secure", "-insecure"},
 		{"ssh-keycheck", "-used", "-3"},
 		{"ssh-keycheck", "-user", "(.*"},
+		{"ssh-keycheck", "-json", "-csv"},
 	}
 
 	for _, p := range parameters {
@@ -1032,6 +1035,50 @@ func TestPrintCSV(t *testing.T) {
 		t.Error("CSV output was wrong")
 		t.Error(expected)
 		t.Error(res)
+	}
+}
+
+func TestPrintJSON(t *testing.T) {
+	expected := []map[string]interface{}{
+		{
+			"user":               "deploy",
+			"comment":            "ecdsa@example.com",
+			"type":               "ECDSA",
+			"keylen":             json.Number("521"),
+			"secure":             false,
+			"last_use":           "2017-10-02T11:22:33Z",
+			"count":              json.Number("1"),
+			"last_ip":            "10.0.0.1",
+			"fingerprint_md5":    "58:b4:db:ba",
+			"fingerprint_sha256": "TTCk17rJoNk",
+		},
+		{
+			"user":               "root",
+			"comment":            "test@github.com",
+			"type":               "ED25519",
+			"keylen":             json.Number("256"),
+			"secure":             true,
+			"last_use":           nil,
+			"count":              json.Number("0"),
+			"last_ip":            nil,
+			"fingerprint_md5":    "b7:32:61:3a",
+			"fingerprint_sha256": "dqk1MyiQsB4",
+		},
+	}
+
+	var buf bytes.Buffer
+	printJSON(&buf, getTestTable(t))
+	var res []map[string]interface{}
+	decoder := json.NewDecoder(&buf)
+	decoder.UseNumber()
+	if err := decoder.Decode(&res); err != nil {
+		t.Fatalf("Failed to unmarshal json: %s", err)
+	}
+
+	if !reflect.DeepEqual(res, expected) {
+		t.Error("JSON output was wrong")
+		t.Errorf("expected: %#v", expected)
+		t.Errorf("got:      %#v", res)
 	}
 }
 
