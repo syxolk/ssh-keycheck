@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 	"text/tabwriter"
+	"text/template"
 	"time"
 )
 
@@ -108,6 +109,12 @@ type filterOptions struct {
 	user         *regexp.Regexp
 }
 
+type tableSummary struct {
+	KeyCount      int
+	UserCount     int
+	InsecureCount int
+}
+
 var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]+) [^ ]* sshd\\[[0-9]+\\]: " +
 	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
@@ -174,7 +181,11 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 	if csv {
 		printCSV(stdout, table)
 	} else {
-		printAlignedTable(stdout, table, printMD5, printSHA256, fopts.now)
+		if len(table) > 0 {
+			printAlignedTable(stdout, table, printMD5, printSHA256, fopts.now)
+			fmt.Fprintln(stdout)
+		}
+		fmt.Fprintln(stdout, makeSummary(table).String())
 	}
 	return success
 }
@@ -218,6 +229,37 @@ func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bo
 	}
 
 	w.Flush()
+}
+
+// Count keys and unique users for a given key table.
+func makeSummary(table []tableRow) tableSummary {
+	userSet := map[string]bool{}
+	insecureCount := 0
+	for _, r := range table {
+		userSet[r.user] = true
+		if !r.alg.isSecure() {
+			insecureCount++
+		}
+	}
+
+	return tableSummary{
+		KeyCount:      len(table),
+		UserCount:     len(userSet),
+		InsecureCount: insecureCount,
+	}
+}
+
+// Return a human readable text of the summary.
+func (s tableSummary) String() string {
+	tmpl := template.Must(template.New("summary").Parse(
+		"Found {{.KeyCount}} key{{if ne .KeyCount 1}}s{{end}} " +
+			"from {{.UserCount}} user{{if ne .UserCount 1}}s{{end}}." +
+			"{{if ne .InsecureCount 0}} {{.InsecureCount}} " +
+			"key{{if ne .InsecureCount 1}}s are{{else}} is{{end}} insecure.{{end}}"))
+
+	var buf bytes.Buffer
+	tmpl.Execute(&buf, s)
+	return buf.String()
 }
 
 func printCSV(out io.Writer, table []tableRow) {

@@ -1232,3 +1232,103 @@ func TestFilterKeyTable(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeSummary(t *testing.T) {
+	parameters := []struct {
+		table []tableRow
+		sum   tableSummary
+	}{
+		{
+			table: []tableRow{},
+			sum: tableSummary{
+				UserCount:     0,
+				KeyCount:      0,
+				InsecureCount: 0,
+			},
+		},
+		{
+			table: []tableRow{
+				tableRow{
+					user: "root",
+					alg:  algorithm{name: dsa, keylen: 1024},
+				},
+				tableRow{
+					user: "root",
+					alg:  algorithm{name: rsa, keylen: 4096},
+				},
+			},
+			sum: tableSummary{
+				UserCount:     1,
+				KeyCount:      2,
+				InsecureCount: 1,
+			},
+		},
+		{
+			table: []tableRow{
+				tableRow{
+					user: "root",
+					alg:  algorithm{name: dsa, keylen: 1024},
+				},
+				tableRow{
+					user: "deploy",
+					alg:  algorithm{name: rsa, keylen: 2048},
+				},
+				tableRow{
+					user: "root",
+					alg:  algorithm{name: rsa, keylen: 4096},
+				},
+			},
+			sum: tableSummary{
+				UserCount:     2,
+				KeyCount:      3,
+				InsecureCount: 1,
+			},
+		},
+	}
+
+	for _, p := range parameters {
+		computedSum := makeSummary(p.table)
+		if computedSum != p.sum {
+			t.Errorf("Expected %v but got %v", p.sum, computedSum)
+		}
+	}
+}
+
+func TestSummaryText(t *testing.T) {
+	parameters := []struct {
+		sum tableSummary
+		out string
+	}{
+		{
+			sum: tableSummary{
+				KeyCount:      1,
+				UserCount:     1,
+				InsecureCount: 1,
+			},
+			out: "Found 1 key from 1 user. 1 key is insecure.",
+		},
+		{
+			sum: tableSummary{
+				KeyCount:      3,
+				UserCount:     2,
+				InsecureCount: 2,
+			},
+			out: "Found 3 keys from 2 users. 2 keys are insecure.",
+		},
+		{
+			sum: tableSummary{
+				KeyCount:      3,
+				UserCount:     1,
+				InsecureCount: 0,
+			},
+			out: "Found 3 keys from 1 user.",
+		},
+	}
+
+	for _, p := range parameters {
+		ret := p.sum.String()
+		if ret != p.out {
+			t.Errorf("Expected %#v but got %#v", p.out, ret)
+		}
+	}
+}

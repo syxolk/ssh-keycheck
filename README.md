@@ -58,6 +58,8 @@ Usage of ssh-keycheck:
 USER  COMMENT           TYPE      SECURITY  LAST USE       COUNT  LAST IP
 root  rsa-key-20170101  RSA-4096  ok        never              -  -
 root  rsa-key-20170102  DSA       insecure  9 minutes ago      3  10.0.0.10
+
+Found 2 keys from 1 user. 1 key is insecure.
 ```
 
 ## How does it work?
