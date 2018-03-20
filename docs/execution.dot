@@ -14,10 +14,26 @@ digraph execution {
     authlog3 [label="/var/log/auth.log.2.gz" width=2];
     keylist [label="List of all keys" group=g1];
     mergelogs [label="Summary of logs" group=g2];
-    display [label="Display table"];
+    merge [label="Merge"];
+    filter [label="Filter"];
+    display [label="Display"];
 
-    start -> {passwd, logs} [headport=w tailport=e];
-    passwd -> {keys1, keys2, keys3} -> keylist [headport=w tailport=e];
-    logs -> {authlog1, authlog2, authlog3} -> mergelogs [headport=w tailport=e];
-    {keylist, mergelogs} -> display [headport=w tailport=e];
+    start:ne -> passwd:w;
+    start:se -> logs:w;
+    passwd:ne -> keys1:w;
+    passwd:e -> keys2:w;
+    passwd:se -> keys3:w;
+    keys1:e -> keylist:nw;
+    keys2:e -> keylist:w;
+    keys3:e -> keylist:sw;
+    logs:ne -> authlog1:w;
+    logs:e -> authlog2:w;
+    logs:se -> authlog3:w;
+    authlog1:e -> mergelogs:nw;
+    authlog2:e -> mergelogs:w;
+    authlog3:e -> mergelogs:sw;
+    keylist:e -> merge:nw;
+    mergelogs:e -> merge:sw;
+    merge -> filter;
+    filter -> display;
 }

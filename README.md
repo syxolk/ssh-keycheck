@@ -84,7 +84,7 @@ go get github.com/syxolk/ssh-keycheck
 
 ## Concurrent execution
 
-![execution graph](./docs/execution.svg)
+![execution graph](./docs/execution.png)
 
 ## Algorithm security
 
