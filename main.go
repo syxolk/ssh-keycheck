@@ -176,7 +176,7 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 		return failedToRun
 	}
 
-	table = filterKeyTable(table, &fopts)
+	table = fopts.filterKeyTable(table)
 
 	if csv {
 		printCSV(stdout, table)
@@ -846,29 +846,45 @@ func (opt *filterOptions) validate() error {
 
 // Filters a given key table by certain filter criteria.
 // Returns the rows matching the criteria, in the same order as in the input table.
-func filterKeyTable(table []tableRow, opt *filterOptions) (ret []tableRow) {
+func (opt *filterOptions) filterKeyTable(table []tableRow) (ret []tableRow) {
+	for _, r := range table {
+		if opt.checkSecurity(r.alg.isSecure()) &&
+			opt.checkLastUse(r.lastUse) &&
+			opt.checkUser(r.user) {
+			// Only add to result set if all checks returned true
+			ret = append(ret, r)
+		}
+	}
+	return
+}
+
+// Checks if a key with the given security would be displayed according to
+// the filter options onlySecure and onlyInsecure.
+// Returns true if the key should be shown.
+func (opt *filterOptions) checkSecurity(secure bool) bool {
+	return (!opt.onlySecure || secure) && (!opt.onlyInsecure || !secure)
+}
+
+// Checks if a key with the given last use time would be displayed according
+// to the filter options usedDays and unusedDays.
+// Returns true if the key should be shown.
+func (opt *filterOptions) checkLastUse(lastUse time.Time) bool {
+	sinceLastUse := opt.now.Sub(lastUse)
 	usedDays := 24 * time.Hour * time.Duration(opt.usedDays)
 	unusedDays := 24 * time.Hour * time.Duration(opt.unusedDays)
 
-	for _, r := range table {
-		sinceLastUse := opt.now.Sub(r.lastUse)
-		if opt.onlySecure && !r.alg.isSecure() {
-			continue
-		}
-		if opt.onlyInsecure && r.alg.isSecure() {
-			continue
-		}
-		if opt.usedDays > 0 && (r.count == 0 || sinceLastUse > usedDays) {
-			continue
-		}
-		if opt.unusedDays > 0 && r.count > 0 && sinceLastUse < unusedDays {
-			continue
-		}
-		if opt.user != nil && opt.user.FindString(r.user) == "" {
-			continue
-		}
-
-		ret = append(ret, r)
+	if opt.usedDays > 0 && (lastUse.IsZero() || sinceLastUse > usedDays) {
+		return false
 	}
-	return
+	if opt.unusedDays > 0 && !lastUse.IsZero() && sinceLastUse < unusedDays {
+		return false
+	}
+	return true
+}
+
+// Checks if a key with the given user name would be displayed according to
+// the filter option user.
+// Returns true if the key should be shown.
+func (opt *filterOptions) checkUser(user string) bool {
+	return opt.user == nil || opt.user.FindString(user) != ""
 }

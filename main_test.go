@@ -1217,7 +1217,7 @@ func TestFilterKeyTable(t *testing.T) {
 
 	for _, p := range parameters {
 		t.Run(p.name, func(t *testing.T) {
-			res := filterKeyTable(getData(), &p.fopts)
+			res := p.fopts.filterKeyTable(getData())
 
 			if len(res) != len(p.keyComments) {
 				t.Fatalf("Expected to get %d keys but got %d",
