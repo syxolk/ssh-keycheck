@@ -11,7 +11,7 @@ test:
 lint:
 	gofmt -l -e . && \
 	go vet -all . && \
-	gocyclo -over 15 . && \
+	gocyclo -over 10 . && \
 	golint -set_exit_status && \
 	ineffassign . && \
 	misspell -error .
