@@ -570,24 +570,38 @@ func parseLogFile(path string) (logSummary, error) {
 			continue
 		}
 
-		// create map of fingerprints if not yet there
-		if logs[log.user] == nil {
-			logs[log.user] = make(map[string]accessSummary)
-		}
-
-		access := logs[log.user][log.fingerprint]
-		if access.lastUse.IsZero() || log.ts.After(access.lastUse) {
-			access.lastUse = log.ts
-			access.lastIP = log.ip
-		}
-		access.count++
-		logs[log.user][log.fingerprint] = access
+		updateLogSummary(logs, log)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("Error while scanning logs: %s", err)
 	}
 
 	return logs, nil
+}
+
+// Updates the given logSummary with a single log line.
+// For a single user and fingerprint combination,
+// the count, last use and last ip is updated.
+func updateLogSummary(logs logSummary, log access) {
+	// Create map of fingerprints if not yet there
+	if logs[log.user] == nil {
+		logs[log.user] = make(map[string]accessSummary)
+	}
+
+	// Make a copy of the access summary
+	access := logs[log.user][log.fingerprint]
+
+	// Update last use and ip only if happened later to what is currently there
+	if access.lastUse.IsZero() || log.ts.After(access.lastUse) {
+		access.lastUse = log.ts
+		access.lastIP = log.ip
+	}
+
+	// Count every use of key
+	access.count++
+
+	// Put copy back into place
+	logs[log.user][log.fingerprint] = access
 }
 
 // Parse a line from an /var/log/auth.log* file and returns either an
