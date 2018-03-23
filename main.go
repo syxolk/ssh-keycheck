@@ -109,6 +109,12 @@ type filterOptions struct {
 	user         *regexp.Regexp
 }
 
+type displayOptions struct {
+	csv         bool
+	printMD5    bool
+	printSHA256 bool
+}
+
 type tableSummary struct {
 	KeyCount      int
 	UserCount     int
@@ -123,14 +129,15 @@ func main() {
 }
 
 func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer) exitCode {
-	var csv, printMD5, printSHA256, showVersion, showHelp bool
+	var showVersion, showHelp bool
 	var userRegexp string
+	dopts := displayOptions{}
 	fopts := filterOptions{now: time.Now()}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	flags.BoolVar(&csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
-	flags.BoolVar(&printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
-	flags.BoolVar(&printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
+	flags.BoolVar(&dopts.csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
+	flags.BoolVar(&dopts.printMD5, "fingerprint-md5", false, "Show fingerprint (MD5) column")
+	flags.BoolVar(&dopts.printSHA256, "fingerprint-sha256", false, "Show fingerprint (SHA256) column")
 	flags.BoolVar(&showVersion, "version", false, "Show version and exit")
 	flags.BoolVar(&showHelp, "help", false, "Show help and exit")
 	flags.BoolVar(&fopts.onlySecure, "secure", false, "List only secure keys")
@@ -142,6 +149,18 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 
 	if err != nil {
 		return invalidFlags
+	}
+
+	if showVersion {
+		fmt.Fprintln(stderr, "ssh-keycheck", version, runtime.Version(),
+			runtime.GOOS, runtime.GOARCH)
+		return success
+	}
+
+	if showHelp {
+		fmt.Fprintf(stderr, "Usage of %s:\n", args[0])
+		flags.PrintDefaults()
+		return success
 	}
 
 	if userRegexp != "" {
@@ -158,18 +177,6 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 		return invalidFlags
 	}
 
-	if showVersion {
-		fmt.Fprintln(stderr, "ssh-keycheck", version, runtime.Version(),
-			runtime.GOOS, runtime.GOARCH)
-		return success
-	}
-
-	if showHelp {
-		fmt.Fprintf(stderr, "Usage of %s:\n", args[0])
-		flags.PrintDefaults()
-		return success
-	}
-
 	table, err := buildKeyTable(prefix)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
@@ -178,16 +185,20 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 
 	table = fopts.filterKeyTable(table)
 
-	if csv {
-		printCSV(stdout, table)
+	display(stdout, table, fopts, dopts)
+	return success
+}
+
+func display(out io.Writer, table []tableRow, fopts filterOptions, dopts displayOptions) {
+	if dopts.csv {
+		printCSV(out, table)
 	} else {
 		if len(table) > 0 {
-			printAlignedTable(stdout, table, printMD5, printSHA256, fopts.now)
-			fmt.Fprintln(stdout)
+			printAlignedTable(out, table, dopts.printMD5, dopts.printSHA256, fopts.now)
+			fmt.Fprintln(out)
 		}
-		fmt.Fprintln(stdout, makeSummary(table).String())
+		fmt.Fprintln(out, makeSummary(table).String())
 	}
-	return success
 }
 
 func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool, now time.Time) {
