@@ -151,7 +151,7 @@ func TestMainVersion(t *testing.T) {
 	var stderr bytes.Buffer
 	args := []string{"ssh-keycheck", "-version"}
 
-	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr, time.Now())
 	if exit != success {
 		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
 	}
@@ -177,7 +177,7 @@ func TestMainHelp(t *testing.T) {
 	var stderr bytes.Buffer
 	args := []string{"ssh-keycheck", "-help"}
 
-	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr, time.Now())
 	if exit != success {
 		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
 	}
@@ -210,7 +210,7 @@ func TestMainInvalidFlag(t *testing.T) {
 	}
 
 	for _, p := range parameters {
-		exit := mainHelper(p, getTestDirectory(t), ioutil.Discard, ioutil.Discard)
+		exit := mainHelper(p, getTestDirectory(t), ioutil.Discard, ioutil.Discard, time.Now())
 		if exit != invalidFlags {
 			t.Fatalf("Expected mainHelper() to return %d but got %d", invalidFlags, exit)
 		}
@@ -222,7 +222,7 @@ func TestMainDefaultOutput(t *testing.T) {
 	var stderr bytes.Buffer
 	args := []string{"ssh-keycheck"}
 
-	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr, time.Now())
 	if exit != success {
 		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
 	}
@@ -252,7 +252,7 @@ func TestMainCsvOutput(t *testing.T) {
 	var stderr bytes.Buffer
 	args := []string{"ssh-keycheck", "-csv"}
 
-	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr)
+	exit := mainHelper(args, getTestDirectory(t), &stdout, &stderr, time.Now())
 	if exit != success {
 		t.Fatalf("Expected mainHelper() to return %d but got %d", success, exit)
 	}

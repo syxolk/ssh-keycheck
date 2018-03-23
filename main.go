@@ -125,14 +125,14 @@ var logPattern = regexp.MustCompile("^([A-Za-z]+ [ 0-9][0-9] [0-9]+:[0-9]+:[0-9]
 	"Accepted publickey for (.+) from ([0-9a-f.:]+) port [0-9]+ ssh2: [A-Z0-9\\-]+ ([0-9a-f:]+)$")
 
 func main() {
-	os.Exit(int(mainHelper(os.Args, "/", os.Stdout, os.Stderr)))
+	os.Exit(int(mainHelper(os.Args, "/", os.Stdout, os.Stderr, time.Now())))
 }
 
-func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer) exitCode {
+func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer, now time.Time) exitCode {
 	var showVersion, showHelp bool
 	var userRegexp string
 	dopts := displayOptions{}
-	fopts := filterOptions{now: time.Now()}
+	fopts := filterOptions{now: now}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.BoolVar(&dopts.csv, "csv", false, "Print table as CSV (RFC 4180) using RFC 3339 for dates")
@@ -185,7 +185,7 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 
 	table = fopts.filterKeyTable(table)
 
-	display(stdout, table, fopts.now, dopts)
+	display(stdout, table, now, dopts)
 	return success
 }
 
