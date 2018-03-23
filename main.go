@@ -185,16 +185,16 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 
 	table = fopts.filterKeyTable(table)
 
-	display(stdout, table, fopts, dopts)
+	display(stdout, table, fopts.now, dopts)
 	return success
 }
 
-func display(out io.Writer, table []tableRow, fopts filterOptions, dopts displayOptions) {
+func display(out io.Writer, table []tableRow, now time.Time, dopts displayOptions) {
 	if dopts.csv {
 		printCSV(out, table)
 	} else {
 		if len(table) > 0 {
-			printAlignedTable(out, table, dopts.printMD5, dopts.printSHA256, fopts.now)
+			printAlignedTable(out, table, dopts.printMD5, dopts.printSHA256, now)
 			fmt.Fprintln(out)
 		}
 		fmt.Fprintln(out, makeSummary(table).String())
