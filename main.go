@@ -215,20 +215,17 @@ func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bo
 	fmt.Fprintln(w)
 
 	for _, row := range table {
-		var lastUseStr, lastIPStr, countStr, insecureStr string
+		lastUseStr := "never"
+		countStr := "    -"
+		lastIPStr := "-"
+		insecureStr := "insecure"
 		if row.count > 0 {
 			lastUseStr = durationPhrase(now.Sub(row.lastUse))
 			countStr = fmt.Sprintf("%5d", row.count)
 			lastIPStr = row.lastIP.String()
-		} else {
-			lastUseStr = "never"
-			countStr = "    -"
-			lastIPStr = "-"
 		}
 		if row.alg.isSecure() {
 			insecureStr = "ok"
-		} else {
-			insecureStr = "insecure"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s", row.user, row.comment,
 			row.alg.String(), insecureStr, lastUseStr, countStr, lastIPStr)
