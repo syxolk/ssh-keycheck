@@ -769,12 +769,12 @@ func parseAllLogFiles(prefix string) (logSummary, error) {
 			logs, err := parseLogFile(file)
 
 			mut.Lock()
+			defer mut.Unlock()
 			if err != nil {
 				lastError = err
-			} else {
-				mergeLogs(allLogs, logs)
+				return
 			}
-			mut.Unlock()
+			mergeLogs(allLogs, logs)
 		}(file)
 	}
 
