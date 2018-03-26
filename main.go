@@ -523,7 +523,8 @@ func splitPubkey(pubkey []byte) (string, []int) {
 			// or is bigger than 4 KB.
 			// The longest possible part is 2049 bytes (for RSA-16384) anyway.
 			return "", nil
-		} else if len(partLengths) == 0 {
+		}
+		if len(partLengths) == 0 {
 			// Convert the first part to a string
 			data := make([]byte, length)
 			if n, _ := buf.Read(data); int32(n) != length {
