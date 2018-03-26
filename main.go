@@ -192,13 +192,15 @@ func mainHelper(args []string, prefix string, stdout io.Writer, stderr io.Writer
 func display(out io.Writer, table []tableRow, now time.Time, dopts displayOptions) {
 	if dopts.csv {
 		printCSV(out, table)
-	} else {
-		if len(table) > 0 {
-			printAlignedTable(out, table, dopts.printMD5, dopts.printSHA256, now)
-			fmt.Fprintln(out)
-		}
-		fmt.Fprintln(out, makeSummary(table).String())
+		return
 	}
+
+	// Default: aligned table
+	if len(table) > 0 {
+		printAlignedTable(out, table, dopts.printMD5, dopts.printSHA256, now)
+		fmt.Fprintln(out)
+	}
+	fmt.Fprintln(out, makeSummary(table).String())
 }
 
 func printAlignedTable(out io.Writer, table []tableRow, printMD5, printSHA256 bool, now time.Time) {
