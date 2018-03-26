@@ -722,18 +722,19 @@ func durationPhrase(dur time.Duration) string {
 	var count int
 	var unit string
 
-	if dur.Seconds() < 1 {
+	switch {
+	case dur.Seconds() < 1:
 		return "just now"
-	} else if dur.Minutes() < 1 {
+	case dur.Minutes() < 1:
 		count = int(dur.Seconds())
 		unit = "second"
-	} else if dur.Hours() < 1 {
+	case dur.Hours() < 1:
 		count = int(dur.Minutes())
 		unit = "minute"
-	} else if dur.Hours() < 24 {
+	case dur.Hours() < 24:
 		count = int(dur.Hours())
 		unit = "hour"
-	} else {
+	default:
 		count = int(dur.Hours() / 24)
 		unit = "day"
 	}
