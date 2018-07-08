@@ -524,7 +524,13 @@ func splitPubkey(pubkey []byte) (string, []int) {
 			// The longest possible part is 2049 bytes (for RSA-16384) anyway.
 			return "", nil
 		}
-		if len(partLengths) == 0 {
+		if len(partLengths) > 0 {
+			off, err := buf.Seek(int64(length), io.SeekCurrent)
+			if err != nil || int(off) > len(pubkey) {
+				// Stop parsing if skipping bytes was not possible
+				return "", nil
+			}
+		} else {
 			// Convert the first part to a string
 			data := make([]byte, length)
 			if n, _ := buf.Read(data); int32(n) != length {
@@ -532,9 +538,6 @@ func splitPubkey(pubkey []byte) (string, []int) {
 				return "", nil
 			}
 			firstPart = string(data)
-		} else if off, err := buf.Seek(int64(length), io.SeekCurrent); err != nil || int(off) > len(pubkey) {
-			// Stop parsing if skipping bytes was not possible
-			return "", nil
 		}
 
 		partLengths = append(partLengths, int(length))
